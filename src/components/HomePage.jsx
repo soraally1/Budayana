@@ -10,6 +10,7 @@ import NariImg from "../assets/Nari.jpeg";
 import DramaImg from "../assets/Drama.jpeg";
 import MusikImg from "../assets/Musik.jpeg";
 import Navbar from "./Section/Navbar";
+import Community from "./Section/Community";
 import Footer from "./Section/Footer";
 
 const HomePage = () => {
@@ -394,6 +395,7 @@ const HomePage = () => {
           </motion.p>
         </div>
       </div>
+      <Community/>
       <Footer />
     </div>
   );
