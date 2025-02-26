@@ -11,6 +11,7 @@ import DramaImg from "../assets/Drama.jpeg";
 import MusikImg from "../assets/Musik.jpeg";
 import Community from "./Section/Community";
 import Footer from "./Section/Footer";
+import Anna from "./Section/Anna";
 
 const HomePage = () => {
   // Animation variants for consistent reuse
@@ -393,6 +394,12 @@ const HomePage = () => {
           </motion.p>
         </div>
       </div>
+
+      {/* Anna Section */}
+      <div className="relative py-20">
+        <Anna />
+      </div>
+
       <Community/>
       <Footer />
     </>

@@ -11,25 +11,17 @@ const navItems = [
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeItem, setActiveItem] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
+      setIsMobile(window.innerWidth < 1024);
     };
     
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
-
-  const iconVariants = {
-    hover: {
-      scale: 1.1,
-      transition: { duration: 0.2 },
-    },
-  };
 
   const desktopNavbarVariants = {
     closed: {
@@ -52,7 +44,7 @@ const Navbar = () => {
     closed: {
       y: "0%",
       borderRadius: "999px",
-      width: "auto",
+      width: "clamp(300px, 85%, 400px)",
       transition: {
         duration: 0.4,
         ease: "easeInOut",
@@ -61,7 +53,7 @@ const Navbar = () => {
     open: {
       y: "0%",
       borderRadius: "24px",
-      width: "90%",
+      width: "clamp(320px, 90%, 420px)",
       transition: {
         duration: 0.4,
         ease: "easeInOut",
@@ -72,8 +64,7 @@ const Navbar = () => {
   const navbarContent = (
     <>
       <motion.span
-        className="w-12 md:w-16 shrink-0"
-        whileHover={{ scale: 1.05 }}
+        className="w-12 lg:w-16 shrink-0"
         whileTap={{ scale: 0.95 }}
       >
         <img 
@@ -83,29 +74,17 @@ const Navbar = () => {
         />
       </motion.span>
 
-      <div className="flex items-center gap-4 md:gap-6">
-        {navItems.map((item, index) => (
+      <div className="flex items-center gap-4 lg:gap-6">
+        {navItems.map((item) => (
           <div 
             key={item.label}
             className="relative"
-            onMouseEnter={() => setActiveItem(index)}
-            onMouseLeave={() => setActiveItem(null)}
           >
             <motion.div
-              variants={iconVariants}
-              whileHover="hover"
               className="relative"
+              whileTap={{ scale: 0.95 }}
             >
-              <item.icon className="w-6 h-6 md:w-7 md:h-7" />
-              {activeItem === index && (
-                <motion.div
-                  initial={{ opacity: 0, y: isMobile ? -20 : 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`absolute ${isMobile ? 'bottom-full mb-2' : 'top-full mt-2'} left-1/2 -translate-x-1/2 px-2 py-1 bg-white text-[#5B2600] text-sm rounded whitespace-nowrap shadow-lg`}
-                >
-                  {item.label}
-                </motion.div>
-              )}
+              <item.icon className="w-6 h-6 lg:w-7 lg:h-7" />
             </motion.div>
           </div>
         ))}
@@ -113,33 +92,54 @@ const Navbar = () => {
     </>
   );
 
+  const mobileContent = (
+    <>
+      <div className="flex items-center justify-between w-full px-6 sm:px-8">
+        <motion.div whileTap={{ scale: 0.95 }}>
+          <TicketCheckIcon className="w-6 h-6 sm:w-7 sm:h-7" />
+        </motion.div>
+        <motion.div whileTap={{ scale: 0.95 }}>
+          <User2 className="w-6 h-6 sm:w-7 sm:h-7" />
+        </motion.div>
+      </div>
+      <motion.div 
+        className="absolute -top-2 left-1/2 -translate-x-1/2"
+      >
+        <img 
+          src={Anna1} 
+          alt="User profile" 
+          className="h-[50px] w-[130px] sm:h-[60px] sm:w-[150px]" 
+        />
+      </motion.div>
+    </>
+  );
+
   if (isMobile) {
     return (
-      <div className="fixed bottom-0 left-0 right-0 flex justify-center p-5 bg-gradient-to-t from-[#EFE6D9] pb-6">
+      <div className="fixed bottom-0 left-0 right-0 flex justify-center p-4 sm:p-5 z-50">
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#EFE6D9] to-transparent" />
         <motion.nav
-          className="flex items-center justify-center gap-6 bg-[#5B2600] px-6 py-3 rounded-full text-white cursor-pointer shadow-lg"
+          className="relative flex items-center justify-center gap-6 bg-[#5B2600]/95 backdrop-blur-sm py-3 sm:py-4 rounded-full text-white cursor-pointer shadow-lg"
           initial="closed"
           animate={isOpen ? "open" : "closed"}
           variants={mobileNavbarVariants}
           onClick={() => setIsOpen(!isOpen)}
-          whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
-          {navbarContent}
+          {mobileContent}
         </motion.nav>
       </div>
     );
   }
 
   return (
-    <div className="flex justify-end p-5">
+    <div className="fixed top-0 right-0 p-4 lg:p-5 z-50">
       <motion.nav
-        className="flex items-center gap-6 bg-[#5B2600] px-8 py-4 rounded-full text-white cursor-pointer shadow-lg"
+        className="flex items-center gap-6 bg-[#5B2600]/95 backdrop-blur-sm px-6 lg:px-8 py-3 lg:py-4 rounded-full text-white cursor-pointer shadow-lg"
         initial="closed"
         animate={isOpen ? "open" : "closed"}
         variants={desktopNavbarVariants}
         onClick={() => setIsOpen(!isOpen)}
-        whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
       >
         {navbarContent}
