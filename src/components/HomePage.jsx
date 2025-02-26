@@ -9,7 +9,6 @@ import MusikTraditional from "../assets/MusikTraditional.png";
 import NariImg from "../assets/Nari.jpeg";
 import DramaImg from "../assets/Drama.jpeg";
 import MusikImg from "../assets/Musik.jpeg";
-import Navbar from "./Section/Navbar";
 import Community from "./Section/Community";
 import Footer from "./Section/Footer";
 
@@ -88,8 +87,7 @@ const HomePage = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#EBE3D5]">
-      <Navbar />
+    <>
       {/* Banner Section */}
       <div className="relative h-[400px] sm:h-[500px] ipad-mini:h-[550px] ipad-air:h-[580px] lg:h-[600px]">
         {/* Cloud Background */}
@@ -397,7 +395,7 @@ const HomePage = () => {
       </div>
       <Community/>
       <Footer />
-    </div>
+    </>
   );
 };
 

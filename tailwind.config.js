@@ -26,7 +26,7 @@ export default {
         'brown': '2px #6F4E37',
       },
       screens: {
-        'xs': '375px',
+        'xs': '475px',
         'ipad-mini': '768px',    // iPad Mini
         'ipad-air': '820px',     // iPad Air
         'ipad-pro': '1024px',    // iPad Pro
