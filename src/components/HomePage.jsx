@@ -145,9 +145,9 @@ const HomePage = () => {
 
       {/* Cloud Gate Group */}
       <div className="relative w-full overflow-hidden px-4 sm:px-8 ipad-mini:px-12 ipad-air:px-14 lg:px-16 mt-20 sm:mt-24 lg:mt-32">
-        <div className="flex justify-between items-center max-w-[2400px] h-[400px] mx-auto">
+        <div className="flex justify-between items-center max-w-[2400px] h-[350px] mx-auto">
           {/* Left Cloud Group */}
-          <div className="relative w-[160px] xs:w-[180px] sm:w-[220px] lg:w-[400px]">
+          <div className="relative w-[160px] xs:w-[180px] sm:w-[220px] lg:w-[300px]">
             {/* Main left cloud */}
             <motion.img
               variants={floatingCloud}
@@ -194,7 +194,7 @@ const HomePage = () => {
           </div>
 
           {/* Right Cloud Group */}
-          <div className="relative w-[160px] xs:w-[180px] sm:w-[220px] lg:w-[400px]">
+          <div className="relative w-[160px] xs:w-[180px] sm:w-[220px] lg:w-[300px]">
             {/* Main right cloud */}
             <motion.img
               variants={floatingCloud}
