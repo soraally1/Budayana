@@ -4,9 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { auth, db } from '../firebase';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, setDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
-import { User, Camera, Loader2, CheckCircle2, AlertCircle, Pencil, Calendar, History } from 'lucide-react';
+import { User, Camera, Loader2, CheckCircle2, AlertCircle, Pencil } from 'lucide-react';
 import BudayanaLogo from '../assets/Budayana.png';
-import TicketCard from './TicketCard';
+import TicketList from './TicketList';
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -30,6 +30,7 @@ const Profile = () => {
     photoURL: ''
   });
   const fileInputRef = useRef(null);
+  const [loadingTickets, setLoadingTickets] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -59,6 +60,7 @@ const Profile = () => {
           });
 
           // Fetch user's tickets
+          setLoadingTickets(true);
           const ticketsRef = collection(db, 'tickets');
           const q = query(ticketsRef, where('userId', '==', user.uid));
           const ticketDocs = await getDocs(q);
@@ -95,6 +97,7 @@ const Profile = () => {
         });
       } finally {
         setLoading(false);
+        setLoadingTickets(false);
       }
     };
 
@@ -389,54 +392,7 @@ const Profile = () => {
 
           {/* Tickets Section */}
           <div className="md:col-span-2 space-y-6">
-            {/* Tabs */}
-            <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-2 flex gap-2">
-              <button
-                onClick={() => setActiveTab('upcoming')}
-                className={`flex-1 py-2 px-4 rounded-xl font-fuzzy text-sm transition-colors ${
-                  activeTab === 'upcoming'
-                    ? 'bg-[#5B2600] text-white'
-                    : 'text-[#5B2600] hover:bg-[#5B2600]/10'
-                }`}
-              >
-                Tiket Mendatang
-              </button>
-              <button
-                onClick={() => setActiveTab('history')}
-                className={`flex-1 py-2 px-4 rounded-xl font-fuzzy text-sm transition-colors ${
-                  activeTab === 'history'
-                    ? 'bg-[#5B2600] text-white'
-                    : 'text-[#5B2600] hover:bg-[#5B2600]/10'
-                }`}
-              >
-                Riwayat Tiket
-              </button>
-            </div>
-
-            {/* Tickets List */}
-            <div className="space-y-4">
-              {tickets[activeTab].length > 0 ? (
-                tickets[activeTab].map(ticket => (
-                  <TicketCard key={ticket.id} ticket={ticket} />
-                ))
-              ) : (
-                <div className="bg-white/95 backdrop-blur-sm rounded-xl p-8 text-center">
-                  <div className="flex justify-center mb-4">
-                    {activeTab === 'upcoming' ? (
-                      <Calendar className="w-12 h-12 text-gray-400" />
-                    ) : (
-                      <History className="w-12 h-12 text-gray-400" />
-                    )}
-                  </div>
-                  <p className="text-gray-600 font-fuzzy">
-                    {activeTab === 'upcoming'
-                      ? 'Belum ada tiket mendatang'
-                      : 'Belum ada riwayat tiket'
-                    }
-                  </p>
-                </div>
-              )}
-            </div>
+            <TicketList tickets={tickets} activeTab={activeTab} setActiveTab={setActiveTab} loadingTickets={loadingTickets} />
           </div>
         </div>
       </div>
