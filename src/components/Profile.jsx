@@ -4,9 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import { auth, db } from '../firebase';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, setDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
-import { User, Camera, Loader2, CheckCircle2, AlertCircle, Pencil } from 'lucide-react';
+import { 
+  User, Camera, Loader2, CheckCircle2, AlertCircle, Pencil, 
+  Calendar, History, Mail, Clock, MapPin, Ticket as TicketIcon,
+  Users, ChevronRight
+} from 'lucide-react';
 import BudayanaLogo from '../assets/Budayana.png';
-import TicketList from './TicketList';
+import TicketCard from './TicketCard';
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -30,7 +34,6 @@ const Profile = () => {
     photoURL: ''
   });
   const fileInputRef = useRef(null);
-  const [loadingTickets, setLoadingTickets] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -60,17 +63,103 @@ const Profile = () => {
           });
 
           // Fetch user's tickets
-          setLoadingTickets(true);
           const ticketsRef = collection(db, 'tickets');
           const q = query(ticketsRef, where('userId', '==', user.uid));
           const ticketDocs = await getDocs(q);
           const ticketsData = ticketDocs.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-          console.log('User ID:', user.uid); // Log the user ID
-          console.log('Fetched Tickets Data:', ticketsData); // Log the fetched tickets data
-          // Separate tickets into upcoming and history
-          const upcoming = ticketsData.filter(ticket => new Date(ticket.eventDate) > new Date());
-          const history = ticketsData.filter(ticket => new Date(ticket.eventDate) <= new Date());
+          console.log('User ID:', user.uid);
+          console.log('Raw Tickets Data:', ticketsData);
+
+          // Get event details for each ticket
+          const ticketsWithEventDetails = await Promise.all(
+            ticketsData.map(async (ticket) => {
+              try {
+                if (!ticket.eventId) {
+                  console.warn('Ticket missing eventId:', ticket);
+                  return ticket;
+                }
+
+                const eventDoc = await getDoc(doc(db, 'events', ticket.eventId));
+                if (eventDoc.exists()) {
+                  const eventData = eventDoc.data();
+                  return {
+                    ...ticket,
+                    venue: eventData.venue,
+                    eventDate: eventData.date,
+                    eventTime: eventData.time,
+                    // Ensure we have eventName from either source
+                    eventName: ticket.eventName || eventData.name || 'Unknown Event'
+                  };
+                }
+                console.warn('Event not found for ticket:', ticket);
+                return {
+                  ...ticket,
+                  eventName: ticket.eventName || 'Unknown Event'
+                };
+              } catch (error) {
+                console.error('Error fetching event details:', error);
+                return {
+                  ...ticket,
+                  eventName: ticket.eventName || 'Unknown Event'
+                };
+              }
+            })
+          );
+
+          console.log('Tickets with event details:', ticketsWithEventDetails);
+
+          // Separate tickets into upcoming and history based on event date
+          const upcoming = ticketsWithEventDetails.filter(ticket => {
+            // If no event date, check purchase date
+            const dateToCheck = ticket.eventDate || ticket.purchaseDate;
+            if (!dateToCheck) return true; // If no dates at all, show in upcoming
+
+            let compareDate;
+            try {
+              // Handle Firestore Timestamp
+              if (dateToCheck && typeof dateToCheck.toDate === 'function') {
+                compareDate = dateToCheck.toDate();
+              } else {
+                compareDate = new Date(dateToCheck);
+              }
+
+              // If date is invalid, show in upcoming
+              if (isNaN(compareDate.getTime())) return true;
+
+              return compareDate > new Date();
+            } catch (error) {
+              console.error('Error comparing dates:', error);
+              return true; // On error, show in upcoming
+            }
+          });
+
+          const history = ticketsWithEventDetails.filter(ticket => {
+            // If no event date, check purchase date
+            const dateToCheck = ticket.eventDate || ticket.purchaseDate;
+            if (!dateToCheck) return false; // If no dates at all, don't show in history
+
+            let compareDate;
+            try {
+              // Handle Firestore Timestamp
+              if (dateToCheck && typeof dateToCheck.toDate === 'function') {
+                compareDate = dateToCheck.toDate();
+              } else {
+                compareDate = new Date(dateToCheck);
+              }
+
+              // If date is invalid, don't show in history
+              if (isNaN(compareDate.getTime())) return false;
+
+              return compareDate <= new Date();
+            } catch (error) {
+              console.error('Error comparing dates:', error);
+              return false; // On error, don't show in history
+            }
+          });
+
+          console.log('Upcoming tickets:', upcoming);
+          console.log('History tickets:', history);
 
           setTickets({ upcoming, history });
         } else {
@@ -97,7 +186,6 @@ const Profile = () => {
         });
       } finally {
         setLoading(false);
-        setLoadingTickets(false);
       }
     };
 
@@ -239,160 +327,283 @@ const Profile = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#EBE3D5] via-[#FFD384]/10 to-[#EBE3D5] pt-24 pb-12 px-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-[#EBE3D5] via-[#FFD384]/10 to-[#EBE3D5] pt-16 sm:pt-20 md:pt-24 pb-8 sm:pb-12 px-3 sm:px-4 md:px-6">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-8 sm:mb-12">
           <img 
             src={BudayanaLogo}
             alt="Budayana Logo"
-            className="h-12 mx-auto mb-4"
+            className="h-10 sm:h-12 md:h-14 mx-auto mb-4 sm:mb-6"
           />
-          <h1 className="text-2xl md:text-3xl font-fuzzy font-bold text-[#5B2600]">
-            Profil Saya
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-fuzzy font-bold text-[#8B4513] mb-1 sm:mb-2">
+            My Profile
           </h1>
+          <p className="text-sm sm:text-base text-[#8B4513]/80 font-fuzzy">
+            Manage your profile and view your tickets
+          </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
           {/* Profile Card */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="md:col-span-1 bg-white/95 backdrop-blur-sm rounded-3xl shadow-xl p-6"
+            transition={{ duration: 0.4 }}
+            className="lg:col-span-1 bg-white/95 backdrop-blur-sm rounded-2xl sm:rounded-3xl shadow-xl overflow-hidden"
           >
-            {/* Profile Picture */}
-            <div className="flex justify-center mb-6">
-              <div className="relative">
-                <div className="w-24 h-24 rounded-full bg-[#FFD384]/20 flex items-center justify-center overflow-hidden">
-                  {(isEditing ? editedData.photoURL : userData.photoURL) ? (
-                    <img 
-                      src={isEditing ? editedData.photoURL : userData.photoURL}
-                      alt="Profile"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <User className="w-12 h-12 text-[#5B2600]" />
+            {/* Profile Header */}
+            <div className="bg-gradient-to-r from-[#8B4513] to-[#5B2600] p-4 sm:p-6">
+              <div className="flex justify-center">
+                <div className="relative">
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-full bg-[#FFD384]/20 flex items-center justify-center overflow-hidden border-4 border-white/30">
+                    {(isEditing ? editedData.photoURL : userData.photoURL) ? (
+                      <img 
+                        src={isEditing ? editedData.photoURL : userData.photoURL}
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <User className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 text-white" />
+                    )}
+                  </div>
+                  {isEditing && (
+                    <button 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="absolute bottom-0 right-0 p-2 sm:p-2.5 bg-white text-[#8B4513] rounded-full shadow-lg hover:bg-[#FFF8F0] transition-colors"
+                      title="Change profile picture"
+                    >
+                      <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </button>
                   )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
                 </div>
-                {isEditing && (
-                  <button 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="absolute bottom-0 right-0 p-2 bg-[#5B2600] rounded-full text-white hover:bg-[#4A3427] transition-colors"
-                    title="Change profile picture"
-                  >
-                    <Camera className="w-4 h-4" />
-                  </button>
-                )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
               </div>
             </div>
 
-            {/* Message Display */}
-            <AnimatePresence>
-              {message.text && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className={`mb-6 p-4 rounded-lg text-sm font-fuzzy flex items-center gap-2 ${
-                    message.type === 'error' 
-                      ? 'bg-red-50 text-red-600' 
-                      : 'bg-green-50 text-green-600'
-                  }`}
-                >
-                  {message.type === 'error' ? (
-                    <AlertCircle className="w-5 h-5 shrink-0" />
-                  ) : (
-                    <CheckCircle2 className="w-5 h-5 shrink-0" />
-                  )}
-                  <p>{message.text}</p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* User Info Form */}
-            <form onSubmit={handleUpdateProfile} className="space-y-4">
-              <div>
-                <label className="block text-sm font-fuzzy text-[#5B2600] font-bold mb-1">
-                  Nama
-                </label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={editedData.name}
-                    onChange={(e) => setEditedData(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#5B2600] font-fuzzy text-sm transition-colors"
-                  />
-                ) : (
-                  <p className="text-gray-600 font-fuzzy">{userData.name}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-fuzzy text-[#5B2600] font-bold mb-1">
-                  Email
-                </label>
-                <p className="text-gray-600 font-fuzzy">{userData.email}</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-fuzzy text-[#5B2600] font-bold mb-1">
-                  Bergabung Sejak
-                </label>
-                <p className="text-gray-600 font-fuzzy">
-                  {userData.createdAt ? formatDate(userData.createdAt) : '-'}
-                </p>
-              </div>
-
-              {isEditing ? (
-                <div className="flex gap-2 pt-4">
-                  <button
-                    type="submit"
-                    disabled={updating}
-                    className="flex-1 py-2 px-4 bg-[#5B2600] text-white rounded-xl font-fuzzy text-sm hover:bg-[#4A3427] transition-colors disabled:opacity-70"
+            {/* Profile Body */}
+            <div className="p-4 sm:p-6">
+              {/* Message Display */}
+              <AnimatePresence>
+                {message.text && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className={`mb-4 sm:mb-6 p-3 sm:p-4 rounded-xl text-xs sm:text-sm font-fuzzy flex items-center gap-2 ${
+                      message.type === 'error' 
+                        ? 'bg-red-50 text-red-600' 
+                        : 'bg-green-50 text-green-600'
+                    }`}
                   >
-                    {updating ? (
-                      <Loader2 className="w-5 h-5 animate-spin mx-auto" />
+                    {message.type === 'error' ? (
+                      <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
                     ) : (
-                      'Simpan'
+                      <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
                     )}
-                  </button>
+                    <p>{message.text}</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* User Info Form */}
+              <form onSubmit={handleUpdateProfile} className="space-y-4 sm:space-y-6">
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="bg-[#FFF8F0] p-3 sm:p-4 rounded-xl">
+                    <label className="block text-xs sm:text-sm font-fuzzy text-[#8B4513] font-bold mb-1.5 sm:mb-2">
+                      Name
+                    </label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editedData.name}
+                        onChange={(e) => setEditedData(prev => ({ ...prev, name: e.target.value }))}
+                        className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm border-2 border-[#8B4513]/20 rounded-xl focus:outline-none focus:border-[#8B4513] font-fuzzy text-[#5B2600] transition-colors bg-white"
+                        placeholder="Enter your name"
+                      />
+                    ) : (
+                      <p className="text-[#5B2600] font-fuzzy font-medium text-sm px-3 sm:px-4 py-2 sm:py-2.5">
+                        {userData.name || 'Not set'}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="bg-[#FFF8F0] p-3 sm:p-4 rounded-xl">
+                    <label className="block text-xs sm:text-sm font-fuzzy text-[#8B4513] font-bold mb-1.5 sm:mb-2">
+                      Email
+                    </label>
+                    <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-2.5">
+                      <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-[#8B4513]" />
+                      <p className="text-[#5B2600] font-fuzzy font-medium text-sm">{userData.email}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-[#FFF8F0] p-3 sm:p-4 rounded-xl">
+                    <label className="block text-xs sm:text-sm font-fuzzy text-[#8B4513] font-bold mb-1.5 sm:mb-2">
+                      Member Since
+                    </label>
+                    <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-2.5">
+                      <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-[#8B4513]" />
+                      <p className="text-[#5B2600] font-fuzzy font-medium text-sm">
+                        {userData.createdAt ? formatDate(userData.createdAt) : '-'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {isEditing ? (
+                  <div className="flex gap-2 sm:gap-3 pt-2">
+                    <button
+                      type="submit"
+                      disabled={updating}
+                      className="flex-1 py-2.5 sm:py-3 px-4 sm:px-6 bg-[#8B4513] text-white rounded-xl font-fuzzy text-xs sm:text-sm hover:bg-[#5B2600] transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
+                    >
+                      {updating ? (
+                        <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                          Save Changes
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditing(false);
+                        setEditedData({
+                          name: userData.name,
+                          photoURL: userData.photoURL
+                        });
+                      }}
+                      className="flex-1 py-2.5 sm:py-3 px-4 sm:px-6 border-2 border-[#8B4513] text-[#8B4513] rounded-xl font-fuzzy text-xs sm:text-sm hover:bg-[#8B4513] hover:text-white transition-colors flex items-center justify-center gap-2"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
                   <button
                     type="button"
-                    onClick={() => {
-                      setIsEditing(false);
-                      setEditedData({
-                        name: userData.name,
-                        photoURL: userData.photoURL
-                      });
-                    }}
-                    className="flex-1 py-2 px-4 border-2 border-[#5B2600] text-[#5B2600] rounded-xl font-fuzzy text-sm hover:bg-[#5B2600] hover:text-white transition-colors"
+                    onClick={() => setIsEditing(true)}
+                    className="w-full py-2.5 sm:py-3 px-4 sm:px-6 bg-[#8B4513] text-white rounded-xl font-fuzzy text-xs sm:text-sm hover:bg-[#5B2600] transition-colors flex items-center justify-center gap-2"
                   >
-                    Batal
+                    <Pencil className="w-4 h-4 sm:w-5 sm:h-5" />
+                    Edit Profile
                   </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(true)}
-                  className="w-full py-2 px-4 bg-[#5B2600] text-white rounded-xl font-fuzzy text-sm hover:bg-[#4A3427] transition-colors flex items-center justify-center gap-2"
-                >
-                  <Pencil className="w-4 h-4" />
-                  Edit Profil
-                </button>
-              )}
-            </form>
+                )}
+              </form>
+            </div>
           </motion.div>
 
           {/* Tickets Section */}
-          <div className="md:col-span-2 space-y-6">
-            <TicketList tickets={tickets} activeTab={activeTab} setActiveTab={setActiveTab} loadingTickets={loadingTickets} />
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+            {/* Tabs */}
+            <div className="bg-white/95 backdrop-blur-sm rounded-xl sm:rounded-2xl p-1.5 sm:p-2 flex gap-1.5 sm:gap-2 shadow-xl">
+              <button
+                onClick={() => setActiveTab('upcoming')}
+                className={`flex-1 py-2.5 sm:py-3 px-4 sm:px-6 rounded-lg sm:rounded-xl font-fuzzy transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-sm ${
+                  activeTab === 'upcoming'
+                    ? 'bg-[#8B4513] text-white shadow-md transform scale-[1.02]'
+                    : 'text-[#8B4513] hover:bg-[#8B4513]/10'
+                }`}
+              >
+                <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
+                Upcoming Tickets
+                {tickets.upcoming.length > 0 && (
+                  <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-xs ${
+                    activeTab === 'upcoming' ? 'bg-white/20' : 'bg-[#8B4513]/20'
+                  }`}>
+                    {tickets.upcoming.length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setActiveTab('history')}
+                className={`flex-1 py-2.5 sm:py-3 px-4 sm:px-6 rounded-lg sm:rounded-xl font-fuzzy transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-sm ${
+                  activeTab === 'history'
+                    ? 'bg-[#8B4513] text-white shadow-md transform scale-[1.02]'
+                    : 'text-[#8B4513] hover:bg-[#8B4513]/10'
+                }`}
+              >
+                <History className="w-4 h-4 sm:w-5 sm:h-5" />
+                Ticket History
+                {tickets.history.length > 0 && (
+                  <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-xs ${
+                    activeTab === 'history' ? 'bg-white/20' : 'bg-[#8B4513]/20'
+                  }`}>
+                    {tickets.history.length}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Tickets List */}
+            <div className="space-y-4 sm:space-y-6">
+              <AnimatePresence mode="wait">
+                {tickets[activeTab].length > 0 ? (
+                  <motion.div
+                    key={activeTab}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3 }}
+                    className="grid gap-4 sm:gap-6"
+                  >
+                    {tickets[activeTab].map((ticket, index) => (
+                      <motion.div
+                        key={ticket.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: index * 0.1 }}
+                      >
+                        <TicketCard ticket={ticket} />
+                      </motion.div>
+                    ))}
+                    <p className="text-center text-xs sm:text-sm text-[#8B4513]/60 font-fuzzy mt-2 sm:mt-4">
+                      {activeTab === 'upcoming' 
+                        ? `Showing ${tickets.upcoming.length} upcoming ticket${tickets.upcoming.length !== 1 ? 's' : ''}`
+                        : `Showing ${tickets.history.length} past ticket${tickets.history.length !== 1 ? 's' : ''}`
+                      }
+                    </p>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key={`empty-${activeTab}`}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3 }}
+                    className="bg-white/95 backdrop-blur-sm rounded-xl p-6 sm:p-8 text-center shadow-xl"
+                  >
+                    <div className="flex justify-center mb-3 sm:mb-4">
+                      {activeTab === 'upcoming' ? (
+                        <Calendar className="w-12 h-12 sm:w-16 sm:h-16 text-[#8B4513]/30" />
+                      ) : (
+                        <History className="w-12 h-12 sm:w-16 sm:h-16 text-[#8B4513]/30" />
+                      )}
+                    </div>
+                    <h3 className="text-lg sm:text-xl font-fuzzy font-bold text-[#8B4513] mb-2 sm:mb-3">
+                      {activeTab === 'upcoming'
+                        ? 'No Upcoming Tickets'
+                        : 'No Past Tickets'
+                      }
+                    </h3>
+                    <p className="text-[#8B4513]/60 font-fuzzy text-xs sm:text-sm max-w-md mx-auto">
+                      {activeTab === 'upcoming'
+                        ? 'Tickets you purchase will appear here. Browse our events to find your next cultural experience!'
+                        : 'Your ticket history will appear here after attending events.'
+                      }
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
       </div>
