@@ -1,49 +1,61 @@
-import { motion } from "framer-motion";
-import { Ticket, Calendar, Clock, MapPin, QrCode, Users } from "lucide-react";
-import PropTypes from 'prop-types';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { db } from '../firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { Calendar, Clock, MapPin, Loader2, AlertCircle, Users, ArrowLeft, Ticket } from 'lucide-react';
+import { auth } from '../firebase';
+import { motion } from 'framer-motion';
 import QRCode from 'react-qr-code';
+import BudayanaLogo from '../assets/Budayana.png';
 
-const TicketCard = ({ ticket }) => {
+const TicketDetail = () => {
+  const { id } = useParams();
   const navigate = useNavigate();
-  console.log('Rendering ticket:', ticket); // Debug log
+  const [ticket, setTicket] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Validate ticket data
-  const validateTicket = () => {
-    const requiredFields = ['id', 'eventName', 'price'];
-    const missingFields = requiredFields.filter(field => !ticket[field]);
-    if (missingFields.length > 0) {
-      console.error('Missing required fields:', missingFields);
-      return false;
-    }
-    return true;
-  };
+  useEffect(() => {
+    const fetchTicketDetails = async () => {
+      if (!auth.currentUser) {
+        setError('You must be logged in to view ticket details.');
+        navigate('/login');
+        return;
+      }
 
-  const getQRData = () => {
-    const baseUrl = window.location.origin;
-    return `${baseUrl}/ticket/${ticket.id}`;
-  };
+      try {
+        const ticketDoc = await getDoc(doc(db, 'tickets', id));
+        if (ticketDoc.exists()) {
+          const ticketData = { id: ticketDoc.id, ...ticketDoc.data() };
+          console.log('Fetched ticket:', ticketData);
+          setTicket(ticketData);
+        } else {
+          setError('Ticket not found');
+        }
+      } catch (error) {
+        console.error('Error fetching ticket details:', error);
+        setError('Failed to load ticket details');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTicketDetails();
+  }, [id, navigate]);
 
   // Helper function to safely format dates
-  const formatDateSafe = (dateValue) => {
+  const formatDate = (dateValue) => {
     if (!dateValue) return 'TBA';
-    
     try {
       // Handle Firestore Timestamp
       if (dateValue && typeof dateValue.toDate === 'function') {
-        return formatDate(dateValue.toDate());
+        dateValue = dateValue.toDate();
       }
-      // Handle string dates
-      if (typeof dateValue === 'string') {
-        const date = new Date(dateValue);
-        if (isNaN(date.getTime())) return 'TBA';
-        return formatDate(date);
-      }
-      // Handle Date objects
-      if (dateValue instanceof Date) {
-        return formatDate(dateValue);
-      }
-      return 'TBA';
+      return new Date(dateValue).toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
     } catch (error) {
       console.error('Error formatting date:', error);
       return 'TBA';
@@ -51,181 +63,181 @@ const TicketCard = ({ ticket }) => {
   };
 
   // Helper function to safely format times
-  const formatTimeSafe = (dateValue) => {
+  const formatTime = (dateValue) => {
     if (!dateValue) return 'TBA';
-    
     try {
       // Handle Firestore Timestamp
       if (dateValue && typeof dateValue.toDate === 'function') {
-        return formatTime(dateValue.toDate());
+        dateValue = dateValue.toDate();
       }
-      // Handle string dates
-      if (typeof dateValue === 'string') {
-        const date = new Date(dateValue);
-        if (isNaN(date.getTime())) return 'TBA';
-        return formatTime(date);
-      }
-      // Handle Date objects
-      if (dateValue instanceof Date) {
-        return formatTime(dateValue);
-      }
-      return 'TBA';
+      return new Date(dateValue).toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
     } catch (error) {
       console.error('Error formatting time:', error);
       return 'TBA';
     }
   };
 
-  if (!validateTicket()) {
+  if (loading) {
     return (
-      <div className="bg-red-50 p-4 rounded-xl border border-red-200">
-        <p className="text-red-600 text-sm font-fuzzy">
-          Ticket data is incomplete. Missing required fields.
-          <br />
-          <span className="text-xs opacity-75">Debug info: {JSON.stringify(ticket)}</span>
-        </p>
+      <div className="min-h-screen bg-gradient-to-br from-[#EBE3D5] via-[#FFD384]/10 to-[#EBE3D5] flex flex-col items-center justify-center p-4">
+        <Loader2 className="w-8 h-8 animate-spin text-[#8B4513] mb-4" />
+        <p className="text-[#8B4513] font-fuzzy">Loading ticket details...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#EBE3D5] via-[#FFD384]/10 to-[#EBE3D5] flex flex-col items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-lg p-6 max-w-md w-full text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-fuzzy font-bold text-[#8B4513] mb-2">Error</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={() => navigate(-1)}
+            className="px-6 py-2 bg-[#8B4513] text-white rounded-xl font-fuzzy hover:bg-[#5B2600] transition-colors inline-flex items-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Go Back
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300"
-    >
-      <div className="flex flex-col md:flex-row">
-        {/* Left Section - Event Info */}
-        <div className="flex-1 p-4 sm:p-6 bg-gradient-to-r from-[#8B4513] to-[#5B2600]">
-          <div className="text-white">
-            <h3 className="font-fuzzy font-bold text-xl sm:text-2xl mb-2">{ticket.eventName}</h3>
-            <p className="text-sm opacity-90 mb-4">
-              {ticket.ticketNumber || `#order_${ticket.id.slice(0, 8)}`}
-            </p>
-            
-            {/* Event Details Grid */}
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
-              <div className="flex items-center gap-2 text-xs sm:text-sm bg-white/10 backdrop-blur-sm p-2 sm:p-2.5 rounded-xl">
-                <Calendar className="w-4 h-4 text-white" />
-                <span className="text-white/90">{formatDateSafe(ticket.eventDate || ticket.purchaseDate)}</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs sm:text-sm bg-white/10 backdrop-blur-sm p-2 sm:p-2.5 rounded-xl">
-                <Clock className="w-4 h-4 text-white" />
-                <span className="text-white/90">{formatTimeSafe(ticket.eventDate || ticket.purchaseDate)}</span>
-              </div>
-            </div>
-
-            <div className="mt-3 sm:mt-4 flex items-center gap-2 text-xs sm:text-sm bg-white/10 backdrop-blur-sm p-2 sm:p-2.5 rounded-xl">
-              <MapPin className="w-4 h-4 text-white" />
-              <span className="text-white/90 line-clamp-1">{ticket.venue || 'Jawa Barat'}</span>
-            </div>
-
-            <div className="mt-3 sm:mt-4 flex items-center gap-2 text-xs sm:text-sm bg-white/10 backdrop-blur-sm p-2 sm:p-2.5 rounded-xl">
-              <Users className="w-4 h-4 text-white" />
-              <span className="text-white/90">{ticket.quantity || 1} Tiket</span>
-            </div>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-[#EBE3D5] via-[#FFD384]/10 to-[#EBE3D5] pt-24 pb-12 px-4">
+      <div className="max-w-2xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <img 
+            src={BudayanaLogo}
+            alt="Budayana Logo"
+            className="h-12 mx-auto mb-4"
+          />
+          <h1 className="text-2xl md:text-3xl font-fuzzy font-bold text-[#8B4513]">
+            Ticket Details
+          </h1>
         </div>
 
-        {/* Perforated Line - Hidden on mobile, shown on md and up */}
-        <div className="hidden md:flex relative w-8 bg-[#FFF8F0] flex-col justify-between items-center py-4">
-          {[...Array(12)].map((_, i) => (
-            <div key={i} className="w-4 h-4 rounded-full bg-[#8B4513]/10" />
-          ))}
-        </div>
-
-        {/* Horizontal Perforated Line - Shown on mobile only */}
-        <div className="md:hidden h-8 bg-[#FFF8F0] flex justify-between items-center px-4">
-          {[...Array(12)].map((_, i) => (
-            <div key={i} className="w-4 h-4 rounded-full bg-[#8B4513]/10" />
-          ))}
-        </div>
-
-        {/* Right Section - QR Code and Price */}
-        <div className="w-full md:w-72 bg-[#FFF8F0] p-4 sm:p-6 flex flex-col sm:flex-row md:flex-col justify-between gap-4 sm:gap-6 md:gap-0">
-          {/* QR Code */}
-          <div className="flex flex-col items-center">
-            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm">
-              <QRCode
-                value={getQRData()}
-                size={100}
-                level="H"
-                fgColor="#8B4513"
-              />
-            </div>
-            <div className="text-center mt-2 sm:mt-3">
-              <p className="text-xs sm:text-sm text-[#8B4513]/70 mb-1">Scan to verify ticket</p>
-              <p className="text-xs text-[#8B4513]/50">ID: {ticket.id.slice(0, 8)}</p>
-            </div>
-          </div>
-
-          {/* Price and Action */}
-          <div className="flex flex-col justify-end">
-            <div className="flex justify-between items-center mb-3 sm:mb-4">
-              <div>
-                <p className="text-xs text-[#8B4513]/70">Total Price</p>
-                <p className="font-fuzzy font-bold text-[#8B4513] text-base sm:text-lg">
-                  Rp {(ticket.totalPrice || (ticket.price * (ticket.quantity || 1))).toLocaleString('id-ID')}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="bg-white rounded-2xl shadow-lg overflow-hidden"
+        >
+          {/* Ticket Header */}
+          <div className="bg-gradient-to-r from-[#8B4513] to-[#5B2600] p-6 rounded-t-2xl">
+            <div className="flex items-start justify-between">
+              <div className="text-white">
+                <h2 className="font-fuzzy font-bold text-2xl mb-2">{ticket.eventName}</h2>
+                <p className="text-sm opacity-90">
+                  {ticket.ticketNumber || `#order_${ticket.id.slice(0, 8)}`}
                 </p>
               </div>
-              <div className="bg-[#8B4513]/10 p-2 rounded-lg">
-                <Ticket className="w-5 h-5 text-[#8B4513]" />
+              <div className="bg-white/20 p-3 rounded-lg backdrop-blur-sm">
+                <Ticket className="w-6 h-6 text-white" />
               </div>
             </div>
-            <button 
-              onClick={() => navigate(`/ticket/${ticket.id}`)}
-              className="w-full py-2 sm:py-2.5 bg-[#8B4513] text-white rounded-xl text-sm font-fuzzy hover:bg-[#5B2600] transition-colors flex items-center justify-center gap-2"
+          </div>
+
+          {/* Ticket Body */}
+          <div className="p-6 space-y-6 bg-[#FFF8F0]">
+            {/* Event Details Grid */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2 md:col-span-1">
+                <div className="bg-white p-4 rounded-xl shadow-sm space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Calendar className="w-5 h-5 text-[#8B4513]" />
+                    <div>
+                      <p className="text-sm text-gray-500">Date</p>
+                      <p className="font-medium">{formatDate(ticket.eventDate || ticket.purchaseDate)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Clock className="w-5 h-5 text-[#8B4513]" />
+                    <div>
+                      <p className="text-sm text-gray-500">Time</p>
+                      <p className="font-medium">{formatTime(ticket.eventDate || ticket.purchaseDate)}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-span-2 md:col-span-1">
+                <div className="bg-white p-4 rounded-xl shadow-sm space-y-4">
+                  <div className="flex items-center gap-3">
+                    <MapPin className="w-5 h-5 text-[#8B4513]" />
+                    <div>
+                      <p className="text-sm text-gray-500">Venue</p>
+                      <p className="font-medium">{ticket.venue || 'Jawa Barat'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Users className="w-5 h-5 text-[#8B4513]" />
+                    <div>
+                      <p className="text-sm text-gray-500">Quantity</p>
+                      <p className="font-medium">{ticket.quantity || 1} Ticket(s)</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* QR Code Section */}
+            <div className="bg-white p-6 rounded-xl shadow-sm">
+              <div className="flex flex-col items-center gap-4">
+                <div className="bg-[#FFF8F0] p-4 rounded-xl">
+                  <QRCode
+                    value={`${window.location.origin}/ticket/${ticket.id}`}
+                    size={160}
+                    level="H"
+                    fgColor="#8B4513"
+                  />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-gray-500 mb-1">Scan QR Code to verify ticket</p>
+                  <p className="text-xs text-gray-400">Ticket ID: {ticket.id}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Price Information */}
+            <div className="bg-white p-4 rounded-xl shadow-sm">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm text-gray-500">Price per ticket</p>
+                  <p className="font-fuzzy font-bold text-[#8B4513]">
+                    Rp {ticket.price.toLocaleString('id-ID')}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-500">Total Amount</p>
+                  <p className="font-fuzzy font-bold text-[#8B4513]">
+                    Rp {(ticket.totalPrice || (ticket.price * (ticket.quantity || 1))).toLocaleString('id-ID')}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="p-6 bg-gradient-to-r from-[#8B4513] to-[#5B2600] flex justify-between items-center">
+            <button
+              onClick={() => navigate(-1)}
+              className="px-6 py-2.5 bg-white text-[#8B4513] rounded-xl font-fuzzy hover:bg-[#FFF8F0] transition-colors inline-flex items-center gap-2"
             >
-              Lihat Detail
+              <ArrowLeft className="w-4 h-4" />
+              Back
             </button>
           </div>
-        </div>
+        </motion.div>
       </div>
-    </motion.div>
+    </div>
   );
 };
 
-// Helper functions to format date and time
-const formatDate = (date) => {
-  return new Date(date).toLocaleDateString('id-ID', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  });
-};
-
-const formatTime = (date) => {
-  return new Date(date).toLocaleTimeString('id-ID', {
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
-
-// PropTypes validation
-TicketCard.propTypes = {
-  ticket: PropTypes.shape({
-    id: PropTypes.string.isRequired,
-    eventName: PropTypes.string.isRequired,
-    price: PropTypes.number.isRequired,
-    eventId: PropTypes.string,
-    eventDate: PropTypes.oneOfType([
-      PropTypes.string,
-      PropTypes.instanceOf(Date),
-      PropTypes.object // For Firestore Timestamp
-    ]),
-    purchaseDate: PropTypes.oneOfType([
-      PropTypes.string,
-      PropTypes.instanceOf(Date),
-      PropTypes.object // For Firestore Timestamp
-    ]),
-    quantity: PropTypes.number,
-    totalPrice: PropTypes.number,
-    venue: PropTypes.string,
-    ticketNumber: PropTypes.string,
-    buyerName: PropTypes.string,
-    status: PropTypes.string,
-  }).isRequired,
-};
-
-export default TicketCard; 
+export default TicketDetail; 
