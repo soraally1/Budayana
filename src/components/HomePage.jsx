@@ -101,7 +101,7 @@ const HomePage = () => {
         </div>
 
         {/* Content Container */}
-        <div className="relative z-10 h-full flex flex-col lg:flex-row items-center justify-between p-4 sm:p-8 ipad-mini:p-12 ipad-air:p-14 lg:p-16">
+        <div className="relative z-10 h-full flex flex-col lg:flex-row items-center justify-between p-10 sm:p-8 ipad-mini:p-12 ipad-air:p-14 lg:p-16">
           {/* Left Side - Character */}
           <div
             className="w-[280px] sm:w-[400px] ipad-mini:w-[420px] ipad-air:w-[480px] lg:w-[580px] 

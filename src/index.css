@@ -39,3 +39,21 @@ body {
     -1px 1px 0 #6F4E37,
     1px 1px 0 #6F4E37;
 }
+
+@font-face {
+  font-family: 'Fuzzy Bubbles';
+  src: url('/fonts/FuzzyBubbles-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Fuzzy Bubbles';
+  src: url('/fonts/FuzzyBubbles-Bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+}
+
+.font-fuzzy {
+  font-family: 'Fuzzy Bubbles', cursive;
+}
