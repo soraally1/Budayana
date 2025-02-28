@@ -1,8 +1,19 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { auth, db } from '../firebase';
-import { doc, getDoc, collection, getDocs, addDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { auth, db, storage } from '../firebase';
+import { 
+  doc, 
+  collection, 
+  addDoc, 
+  deleteDoc, 
+  updateDoc,
+  query,
+  orderBy,
+  onSnapshot,
+  getDoc
+} from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { onAuthStateChanged } from 'firebase/auth';
 import { 
   AlertTriangle, 
@@ -21,6 +32,92 @@ import {
 } from 'lucide-react';
 import PropTypes from 'prop-types';
 
+// Add categories array outside components
+const categories = [
+  { id: 'dance', name: 'Tari Tradisional', icon: '💃' },
+  { id: 'music', name: 'Musik Tradisional', icon: '🎵' },
+  { id: 'drama', name: 'Drama Tradisional', icon: '🎭' },
+  { id: 'ceremony', name: 'Upacara Adat', icon: '🏮' },
+  { id: 'festival', name: 'Festival Budaya', icon: '🎪' },
+  { id: 'workshop', name: 'Workshop Budaya', icon: '👥' }
+];
+
+// ImageDropzone Component
+const ImageDropzone = ({ imagePreview, onImageChange }) => {
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDragIn = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragOut = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      onImageChange({ target: { files: [files[0]] } });
+    }
+  };
+
+  return (
+    <label
+      className={`relative block w-full aspect-video rounded-xl overflow-hidden cursor-pointer border-2 border-dashed transition-all ${
+        isDragging ? 'border-[#5B2600] bg-[#5B2600]/5' : 'border-gray-300 hover:border-[#5B2600]/50'
+      }`}
+      onDragEnter={handleDragIn}
+      onDragLeave={handleDragOut}
+      onDragOver={handleDrag}
+      onDrop={handleDrop}
+    >
+      <input
+        type="file"
+        accept="image/*"
+        onChange={onImageChange}
+        className="hidden"
+      />
+      {imagePreview ? (
+        <img
+          src={imagePreview}
+          alt="Preview"
+          className="w-full h-full object-cover"
+        />
+      ) : (
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500 gap-2">
+          <Upload className="w-8 h-8" />
+          <div className="text-center">
+            <p className="font-medium">Drop image here or click to upload</p>
+            <p className="text-sm text-gray-400">Supports: JPG, PNG, WEBP</p>
+          </div>
+        </div>
+      )}
+    </label>
+  );
+};
+
+ImageDropzone.propTypes = {
+  imagePreview: PropTypes.string,
+  onImageChange: PropTypes.func.isRequired
+};
+
+ImageDropzone.defaultProps = {
+  imagePreview: null
+};
+
 const AdminPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -29,6 +126,10 @@ const AdminPage = () => {
   const [events, setEvents] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [showAddEvent, setShowAddEvent] = useState(false);
+  const [showEditEvent, setShowEditEvent] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [deletingEvent, setDeletingEvent] = useState(null);
   const [newEvent, setNewEvent] = useState({
     name: '',
     date: '',
@@ -38,93 +139,31 @@ const AdminPage = () => {
     description: '',
     maxTickets: '',
     isActive: true,
-    imageUrl: ''
+    imageUrl: '',
+    category: 'dance'
   });
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  const [debugInfo, setDebugInfo] = useState(null); // For debugging
-  const [showEditEvent, setShowEditEvent] = useState(false);
-  const [editingEvent, setEditingEvent] = useState(null);
-  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
-  const [deletingEvent, setDeletingEvent] = useState(null);
+  const [sortOrder, setSortOrder] = useState('newest');
 
-  // Fetch events and tickets
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        console.log('Fetching data...');
-        console.log('User is authenticated:', isAdmin); // Check if user is authenticated
-
-        // Fetch events
-        const eventsSnapshot = await getDocs(collection(db, 'events'));
-        const eventsData = eventsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setEvents(eventsData);
-
-        // Fetch tickets
-        const ticketsSnapshot = await getDocs(collection(db, 'tickets'));
-        const ticketsData = ticketsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setTickets(ticketsData);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      }
-    };
-
-    console.log('User is authenticated:', isAdmin);
-    console.log('User is admin:', isAdmin);
-
-    if (isAdmin) {
-      fetchData();
-    } else {
-      console.error('User does not have admin privileges.');
-    }
-  }, [isAdmin]);
-
+  // Check admin status and fetch data
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       try {
         if (!user) {
-          console.log('No user found, redirecting to login');
           navigate('/login');
           return;
         }
 
-        console.log('Checking admin status for user:', user.uid);
         const userDoc = await getDoc(doc(db, 'users', user.uid));
-        
-        // Debug information
-        setDebugInfo({
-          exists: userDoc.exists(),
-          data: userDoc.data(),
-          uid: user.uid,
-          isAdmin: userDoc.data()?.isAdmin
-        });
-
-        if (!userDoc.exists()) {
-          console.log('User document does not exist');
-          setError('User document not found');
-          return;
-        }
-
-        const userData = userDoc.data();
-        console.log('User data:', userData);
-
-        if (!userData.isAdmin) {
-          console.log('User is not admin');
+        if (!userDoc.exists() || !userDoc.data().isAdmin) {
           setError('Akses ditolak. Anda tidak memiliki izin admin.');
-          setTimeout(() => {
-            navigate('/');
-          }, 3000);
+          setTimeout(() => navigate('/'), 3000);
           return;
         }
 
-        console.log('User is admin, granting access');
         setIsAdmin(true);
+        await fetchData();
       } catch (error) {
         console.error('Error checking admin status:', error);
         setError('Terjadi kesalahan saat memverifikasi status admin');
@@ -133,151 +172,160 @@ const AdminPage = () => {
       }
     });
 
-    // Cleanup subscription
     return () => unsubscribe();
   }, [navigate]);
 
-  // Debug view (only in development)
-  const isDevelopment = import.meta.env.MODE === 'development';
-  if (isDevelopment && debugInfo) {
-    console.log('Debug Info:', debugInfo);
-  }
+  // Fetch events and tickets data
+  const fetchData = async () => {
+    try {
+      // Set up real-time listeners for events and tickets
+      const eventsQuery = query(collection(db, 'events'), orderBy('createdAt', 'desc'));
+      const unsubscribeEvents = onSnapshot(eventsQuery, (snapshot) => {
+        const eventsData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate() || new Date()
+        }));
+        setEvents(eventsData);
+      });
 
-  const convertToBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = (error) => reject(error);
-    });
+      const ticketsQuery = query(collection(db, 'tickets'));
+      const unsubscribeTickets = onSnapshot(ticketsQuery, (snapshot) => {
+        const ticketsData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setTickets(ticketsData);
+      });
+
+      return () => {
+        unsubscribeEvents();
+        unsubscribeTickets();
+      };
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      setError('Terjadi kesalahan saat mengambil data');
+    }
   };
 
+  // Handle image upload
+  const handleImageUpload = async (file) => {
+    if (!file) return null;
+    const storageRef = ref(storage, `events/${Date.now()}_${file.name}`);
+    await uploadBytes(storageRef, file);
+    return await getDownloadURL(storageRef);
+  };
+
+  // Handle image change
   const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
       try {
-        // Create preview URL
         const previewUrl = URL.createObjectURL(file);
         setImagePreview(previewUrl);
-        
-        // Convert to base64
-        const base64 = await convertToBase64(file);
-        setSelectedImage(base64);
+        setSelectedImage(file);
       } catch (error) {
         console.error('Error processing image:', error);
       }
     }
   };
 
+  // Add new event
   const handleAddEvent = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
+      let imageUrl = '';
+      if (selectedImage) {
+        imageUrl = await handleImageUpload(selectedImage);
+      }
+
       const eventData = {
         ...newEvent,
         price: Number(newEvent.price),
         maxTickets: Number(newEvent.maxTickets),
+        ticketsSold: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
-        ticketsSold: 0,
-        imageUrl: selectedImage || '' // Use base64 image directly
+        imageUrl
       };
 
       await addDoc(collection(db, 'events'), eventData);
       setShowAddEvent(false);
-      setNewEvent({
-        name: '',
-        date: '',
-        time: '',
-        venue: '',
-        price: '',
-        description: '',
-        maxTickets: '',
-        isActive: true,
-        imageUrl: ''
-      });
-      setSelectedImage(null);
-      setImagePreview(null);
-
-      // Refresh events
-      const eventsSnapshot = await getDocs(collection(db, 'events'));
-      const eventsData = eventsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setEvents(eventsData);
+      resetForm();
     } catch (error) {
       console.error('Error adding event:', error);
+      setError('Terjadi kesalahan saat menambahkan event');
     } finally {
       setLoading(false);
     }
   };
 
+  // Edit event
   const handleEditEvent = async (e) => {
     e.preventDefault();
-    console.log('Attempting to edit event:', editingEvent);
-    console.log('User is admin before updating event:', isAdmin);
-    if (!isAdmin) {
-      console.error('User does not have admin privileges to update events.');
-      return;
-    }
     setLoading(true);
     try {
+      let imageUrl = editingEvent.imageUrl;
+      if (selectedImage && selectedImage !== editingEvent.imageUrl) {
+        imageUrl = await handleImageUpload(selectedImage);
+      }
+
       const eventRef = doc(db, 'events', editingEvent.id);
       const eventData = {
-        name: editingEvent.name,
-        date: editingEvent.date,
-        time: editingEvent.time,
-        venue: editingEvent.venue,
+        ...editingEvent,
         price: Number(editingEvent.price),
         maxTickets: Number(editingEvent.maxTickets),
-        description: editingEvent.description,
-        isActive: editingEvent.isActive,
         updatedAt: new Date(),
-        imageUrl: selectedImage || editingEvent.imageUrl
+        imageUrl
       };
 
       await updateDoc(eventRef, eventData);
       setShowEditEvent(false);
-      setEditingEvent(null);
-      setSelectedImage(null);
-      setImagePreview(null);
-
-      // Refresh events
-      const eventsSnapshot = await getDocs(collection(db, 'events'));
-      const eventsData = eventsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setEvents(eventsData);
+      resetForm();
     } catch (error) {
       console.error('Error updating event:', error);
+      setError('Terjadi kesalahan saat mengupdate event');
     } finally {
       setLoading(false);
     }
   };
 
+  // Delete event
   const handleDeleteEvent = async (eventId) => {
     setLoading(true);
     try {
       await deleteDoc(doc(db, 'events', eventId));
-      
-      // Refresh events
-      const eventsSnapshot = await getDocs(collection(db, 'events'));
-      const eventsData = eventsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setEvents(eventsData);
       setShowConfirmDelete(false);
       setDeletingEvent(null);
     } catch (error) {
       console.error('Error deleting event:', error);
+      setError('Terjadi kesalahan saat menghapus event');
     } finally {
       setLoading(false);
     }
   };
 
+  // Reset form
+  const resetForm = () => {
+    setNewEvent({
+      name: '',
+      date: '',
+      time: '',
+      venue: '',
+      price: '',
+      description: '',
+      maxTickets: '',
+      isActive: true,
+      imageUrl: '',
+      category: 'dance'
+    });
+    setSelectedImage(null);
+    setImagePreview(null);
+    setEditingEvent(null);
+  };
+
+  // Get ticket stats
   const getTicketStats = (eventId) => {
     const eventTickets = tickets.filter(ticket => ticket.eventId === eventId);
     return {
@@ -286,80 +334,29 @@ const AdminPage = () => {
     };
   };
 
-  // Add this component for drag and drop
-  const ImageDropzone = ({ imagePreview, onImageChange }) => {
-    const [isDragging, setIsDragging] = useState(false);
-
-    const handleDrag = useCallback((e) => {
-      e.preventDefault();
-      e.stopPropagation();
-    }, []);
-
-    const handleDragIn = useCallback((e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(true);
-    }, []);
-
-    const handleDragOut = useCallback((e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(false);
-    }, []);
-
-    const handleDrop = useCallback((e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(false);
-      
-      const files = e.dataTransfer.files;
-      if (files && files.length > 0) {
-        onImageChange({ target: { files: [files[0]] } });
-      }
-    }, [onImageChange]);
-
-    return (
-      <label
-        className={`relative block w-full aspect-video rounded-xl overflow-hidden cursor-pointer border-2 border-dashed transition-all ${
-          isDragging ? 'border-[#5B2600] bg-[#5B2600]/5' : 'border-gray-300 hover:border-[#5B2600]/50'
-        }`}
-        onDragEnter={handleDragIn}
-        onDragLeave={handleDragOut}
-        onDragOver={handleDrag}
-        onDrop={handleDrop}
-      >
-        <input
-          type="file"
-          accept="image/*"
-          onChange={onImageChange}
-          className="hidden"
-        />
-        {imagePreview ? (
-          <img
-            src={imagePreview}
-            alt="Preview"
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500 gap-2">
-            <Upload className="w-8 h-8" />
-            <div className="text-center">
-              <p className="font-medium">Drop image here or click to upload</p>
-              <p className="text-sm text-gray-400">Supports: JPG, PNG, WEBP</p>
-            </div>
-          </div>
-        )}
-      </label>
-    );
-  };
-
-  ImageDropzone.propTypes = {
-    imagePreview: PropTypes.string,
-    onImageChange: PropTypes.func.isRequired
-  };
-
-  ImageDropzone.defaultProps = {
-    imagePreview: null
+  // Sort events
+  const handleSort = (value) => {
+    setSortOrder(value);
+    const sortedEvents = [...events];
+    
+    switch (value) {
+      case 'newest':
+        sortedEvents.sort((a, b) => b.createdAt - a.createdAt);
+        break;
+      case 'oldest':
+        sortedEvents.sort((a, b) => a.createdAt - b.createdAt);
+        break;
+      case 'mostSold':
+        sortedEvents.sort((a, b) => b.ticketsSold - a.ticketsSold);
+        break;
+      case 'leastSold':
+        sortedEvents.sort((a, b) => a.ticketsSold - b.ticketsSold);
+        break;
+      default:
+        break;
+    }
+    
+    setEvents(sortedEvents);
   };
 
   if (loading) {
@@ -383,12 +380,6 @@ const AdminPage = () => {
             <p className="font-fuzzy">{error}</p>
           </div>
           <p className="text-sm text-gray-500">Mengalihkan ke halaman utama...</p>
-          {/* Debug information in development */}
-          {isDevelopment && debugInfo && (
-            <div className="mt-4 p-4 bg-gray-100 rounded-lg text-xs font-mono">
-              <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
-            </div>
-          )}
         </motion.div>
       </div>
     );
@@ -399,31 +390,10 @@ const AdminPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#EBE3D5] via-[#FFD384]/10 to-[#EBE3D5] p-3 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
-        {/* Header with Welcome Message */}
-        <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 sm:p-6 mt-[80px] sm:mt-[100px] shadow-lg">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-fuzzy font-bold text-[#5B2600] mb-2">
-                Dashboard Admin
-              </h1>
-              <p className="text-sm sm:text-base text-gray-600">
-                Kelola event dan pantau penjualan tiket
-              </p>
-            </div>
-            <button
-              onClick={() => setShowAddEvent(true)}
-              className="flex items-center gap-2 bg-[#5B2600] text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-fuzzy hover:bg-[#4A3427] transition-colors w-full sm:w-auto justify-center shadow-lg hover:shadow-xl text-sm sm:text-base"
-            >
-              <PlusCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span>Buat Event Baru</span>
-            </button>
-          </div>
-        </div>
-
+    <div className="min-h-screen bg-gradient-to-br from-[#EBE3D5] via-[#FFD384]/10 to-[#EBE3D5] pt-24 pb-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatsCard
             title="Total Event"
             value={events.length}
@@ -470,38 +440,24 @@ const AdminPage = () => {
                   {events.length} total event
                 </p>
               </div>
-              <div className="flex items-center gap-4 w-full sm:w-auto">
+              <div className="flex items-center gap-3 w-full sm:w-auto">
                 <select 
-                  className="px-3 sm:px-4 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#5B2600] w-full sm:w-auto bg-white shadow-sm"
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    const sortedEvents = [...events];
-                    
-                    switch (value) {
-                      case 'newest':
-                        sortedEvents.sort((a, b) => b.createdAt - a.createdAt);
-                        break;
-                      case 'oldest':
-                        sortedEvents.sort((a, b) => a.createdAt - b.createdAt);
-                        break;
-                      case 'mostSold':
-                        sortedEvents.sort((a, b) => b.ticketsSold - a.ticketsSold);
-                        break;
-                      case 'leastSold':
-                        sortedEvents.sort((a, b) => a.ticketsSold - b.ticketsSold);
-                        break;
-                      default:
-                        break;
-                    }
-                    
-                    setEvents(sortedEvents);
-                  }}
+                  className="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#5B2600] bg-white shadow-sm"
+                  value={sortOrder}
+                  onChange={(event) => handleSort(event.target.value)}
                 >
                   <option value="newest">Terbaru</option>
                   <option value="oldest">Terlama</option>
                   <option value="mostSold">Penjualan Tertinggi</option>
                   <option value="leastSold">Penjualan Terendah</option>
                 </select>
+                <button
+                  onClick={() => setShowAddEvent(true)}
+                  className="flex items-center gap-2 bg-[#5B2600] text-white px-4 py-2 rounded-xl font-fuzzy hover:bg-[#4A3427] transition-colors shadow-lg hover:shadow-xl text-sm whitespace-nowrap"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Event Baru</span>
+                </button>
               </div>
             </div>
           </div>
@@ -650,6 +606,27 @@ const AdminPage = () => {
                       className="w-full px-4 py-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#5B2600] bg-white text-sm"
                       required
                     />
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-sm font-medium text-gray-700">Kategori Event</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {categories.map((category) => (
+                        <button
+                          key={category.id}
+                          type="button"
+                          onClick={() => setNewEvent(prev => ({ ...prev, category: category.id }))}
+                          className={`flex items-center gap-2 p-3 rounded-xl border-2 transition-all ${
+                            newEvent.category === category.id
+                              ? 'border-[#5B2600] bg-[#5B2600]/5 text-[#5B2600]'
+                              : 'border-gray-200 hover:border-[#5B2600]/30 hover:bg-[#5B2600]/5'
+                          }`}
+                        >
+                          <span className="text-xl">{category.icon}</span>
+                          <span className="text-sm font-medium">{category.name}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
@@ -834,6 +811,27 @@ const AdminPage = () => {
                       required
                     />
                   </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-sm font-medium text-gray-700">Kategori Event</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {categories.map((category) => (
+                        <button
+                          key={category.id}
+                          type="button"
+                          onClick={() => setEditingEvent(prev => ({ ...prev, category: category.id }))}
+                          className={`flex items-center gap-2 p-3 rounded-xl border-2 transition-all ${
+                            editingEvent?.category === category.id
+                              ? 'border-[#5B2600] bg-[#5B2600]/5 text-[#5B2600]'
+                              : 'border-gray-200 hover:border-[#5B2600]/30 hover:bg-[#5B2600]/5'
+                          }`}
+                        >
+                          <span className="text-xl">{category.icon}</span>
+                          <span className="text-sm font-medium">{category.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -882,28 +880,33 @@ const AdminPage = () => {
 };
 
 const StatsCard = ({ title, value, icon: Icon, subtitle, trend, trendUp }) => (
-  <div className="bg-white/95 backdrop-blur-sm rounded-xl p-6 shadow-lg hover:shadow-xl transition-all group">
+  <motion.div
+    whileHover={{ scale: 1.02 }}
+    className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-[#5B2600]/5 hover:shadow-xl transition-all group"
+  >
     <div className="flex items-start justify-between">
-      <div className="space-y-2">
-        <div className="p-3 bg-[#5B2600]/5 rounded-lg w-fit group-hover:bg-[#5B2600]/10 transition-colors">
+      <div className="space-y-3">
+        <div className="p-3.5 bg-gradient-to-br from-[#5B2600]/5 to-[#5B2600]/10 rounded-xl w-fit group-hover:scale-110 transition-all">
           <Icon className="w-6 h-6 text-[#5B2600]" />
         </div>
-        <p className="text-sm text-gray-600">{title}</p>
-        <p className="text-2xl font-bold text-[#5B2600]">{value}</p>
+        <div>
+          <p className="text-sm font-medium text-[#5B2600]/70">{title}</p>
+          <p className="text-2xl font-bold text-[#5B2600] mt-1">{value}</p>
+        </div>
       </div>
       {trend && (
-        <span className={`px-2.5 py-1.5 rounded-lg text-sm font-medium ${
+        <span className={`px-3 py-1.5 rounded-xl text-sm font-medium ${
           trendUp === null ? 'bg-gray-100 text-gray-600' :
           trendUp ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-        }`}>
+        } group-hover:scale-105 transition-transform`}>
           {trend}
         </span>
       )}
     </div>
     {subtitle && (
-      <p className="text-xs text-gray-500 mt-2">{subtitle}</p>
+      <p className="text-xs text-[#5B2600]/60 mt-3">{subtitle}</p>
     )}
-  </div>
+  </motion.div>
 );
 
 StatsCard.propTypes = {
@@ -915,155 +918,184 @@ StatsCard.propTypes = {
   trendUp: PropTypes.bool
 };
 
-const EventCard = ({ event, stats, onEdit, onDelete }) => (
-  <motion.div
-    whileHover={{ scale: 1.01 }}
-    className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all border border-gray-100 group relative"
-  >
-    {/* Add Options Menu */}
-    <div className="absolute top-4 right-4 z-10">
-      <div className="relative group">
-        <button className="p-2 rounded-lg bg-white/90 hover:bg-white shadow-lg text-gray-600 hover:text-[#5B2600] transition-colors">
-          <MoreVertical className="w-5 h-5" />
-        </button>
-        <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-          <button
-            onClick={() => onEdit(event)}
-            className="flex items-center gap-2 w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 first:rounded-t-xl"
-          >
-            <Edit className="w-4 h-4" />
-            <span>Edit Event</span>
-          </button>
-          <button
-            onClick={() => onDelete(event)}
-            className="flex items-center gap-2 w-full px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50 last:rounded-b-xl"
-          >
-            <Trash2 className="w-4 h-4" />
-            <span>Hapus Event</span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    {/* Image Section with Overlay */}
-    <div className="relative aspect-[16/9] w-full">
-      {event.imageUrl ? (
-        <img
-          src={event.imageUrl}
-          alt={event.name}
-          className="w-full h-full object-cover"
-        />
-      ) : (
-        <div className="w-full h-full bg-[#5B2600]/5 flex items-center justify-center">
-          <ImageIcon className="w-10 h-10 text-[#5B2600]/30" />
-        </div>
-      )}
-      {/* Status Badge */}
-      <div className="absolute top-4 right-4">
-        <span className={`px-3 py-1.5 rounded-full text-xs font-medium ${
-          event.maxTickets - stats.sold === 0
-            ? 'bg-red-100 text-red-700'
-            : (event.maxTickets - stats.sold) < (event.maxTickets * 0.2)
-            ? 'bg-amber-100 text-amber-700'
-            : 'bg-green-100 text-green-700'
-        }`}>
-          {event.maxTickets - stats.sold === 0
-            ? 'Sold Out'
-            : (event.maxTickets - stats.sold) < (event.maxTickets * 0.2)
-            ? 'Hampir Habis'
-            : 'Tersedia'}
-        </span>
-      </div>
-    </div>
-
-    {/* Content Section */}
-    <div className="p-5">
-      {/* Event Info */}
-      <div className="mb-4">
-        <h3 className="font-fuzzy font-bold text-[#5B2600] text-xl mb-2 group-hover:text-[#8B4513] transition-colors">
-          {event.name}
-        </h3>
-        <div className="space-y-2">
-          <div className="flex items-center gap-3 text-sm text-gray-600">
-            <div className="p-2 bg-[#5B2600]/5 rounded-lg">
-              <Calendar className="w-4 h-4 text-[#5B2600]" />
-            </div>
-            <span>{event.date}</span>
-          </div>
-          <div className="flex items-center gap-3 text-sm text-gray-600">
-            <div className="p-2 bg-[#5B2600]/5 rounded-lg">
-              <Clock className="w-4 h-4 text-[#5B2600]" />
-            </div>
-            <span>{event.time}</span>
-          </div>
-          <div className="flex items-center gap-3 text-sm text-gray-600">
-            <div className="p-2 bg-[#5B2600]/5 rounded-lg">
-              <MapPin className="w-4 h-4 text-[#5B2600]" />
-            </div>
-            <span>{event.venue}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats Section */}
-      <div className="space-y-4">
-        {/* Ticket Sales Progress */}
-        <div className="bg-[#5B2600]/5 rounded-xl p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-[#5B2600]">Tiket Terjual</span>
-            <span className="text-sm font-bold text-[#5B2600]">
-              {stats.sold}/{event.maxTickets}
-            </span>
-          </div>
-          <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div 
-              className="absolute inset-y-0 left-0 bg-[#5B2600] transition-all rounded-full"
-              style={{ width: `${(stats.sold / event.maxTickets) * 100}%` }}
+const EventCard = ({ event, stats, onEdit, onDelete }) => {
+  const category = categories.find(c => c.id === event.category) || categories[0];
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -4 }}
+      className="group"
+    >
+      <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all border border-[#5B2600]/5 relative">
+        {/* Image Section */}
+        <div className="relative aspect-[16/9] w-full overflow-hidden">
+          {event.imageUrl ? (
+            <img
+              src={event.imageUrl}
+              alt={event.name}
+              className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
             />
-          </div>
-          <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
-            <span>{Math.round((stats.sold / event.maxTickets) * 100)}% terjual</span>
-            <span>{event.maxTickets - stats.sold} tersisa</span>
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-[#5B2600]/5 to-[#5B2600]/10 flex items-center justify-center">
+              <ImageIcon className="w-12 h-12 text-[#5B2600]/20" />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          
+          {/* Status Badge and Category */}
+          <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className={`px-3 py-1.5 rounded-xl text-xs font-medium backdrop-blur-md ${
+                event.maxTickets - stats.sold === 0
+                  ? 'bg-red-500/70 text-white'
+                  : (event.maxTickets - stats.sold) < (event.maxTickets * 0.2)
+                  ? 'bg-amber-500/70 text-white'
+                  : 'bg-green-500/70 text-white'
+              }`}>
+                {event.maxTickets - stats.sold === 0
+                  ? 'Sold Out'
+                  : (event.maxTickets - stats.sold) < (event.maxTickets * 0.2)
+                  ? 'Hampir Habis'
+                  : 'Tersedia'}
+              </span>
+              <span className="px-3 py-1.5 rounded-xl text-xs font-medium backdrop-blur-md bg-white/70 text-[#5B2600]">
+                {category.icon} {category.name}
+              </span>
+            </div>
+            
+            {/* Actions Menu */}
+            <div className="relative">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="p-2 rounded-xl bg-white/90 hover:bg-white shadow-lg text-[#5B2600] hover:text-[#8B4513] transition-colors"
+              >
+                <MoreVertical className="w-5 h-5" />
+              </motion.button>
+              <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+                <motion.button
+                  whileHover={{ x: 4 }}
+                  onClick={() => onEdit(event)}
+                  className="flex items-center gap-2 w-full px-4 py-3 text-left text-sm text-[#5B2600] hover:bg-[#5B2600]/5 first:rounded-t-xl"
+                >
+                  <Edit className="w-4 h-4" />
+                  <span>Edit Event</span>
+                </motion.button>
+                <motion.button
+                  whileHover={{ x: 4 }}
+                  onClick={() => onDelete(event)}
+                  className="flex items-center gap-2 w-full px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50 last:rounded-b-xl"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Hapus Event</span>
+                </motion.button>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Price and Revenue */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-[#5B2600]/5 rounded-xl p-4">
-            <p className="text-sm text-gray-600 mb-1">Harga Tiket</p>
-            <p className="font-bold text-[#5B2600] text-lg">
-              Rp {event.price.toLocaleString()}
-            </p>
+        {/* Content Section */}
+        <div className="p-6">
+          {/* Event Info */}
+          <div className="mb-6">
+            <h3 className="font-fuzzy font-bold text-[#5B2600] text-xl mb-3 group-hover:text-[#8B4513] transition-colors line-clamp-2">
+              {event.name}
+            </h3>
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-3 text-sm text-[#5B2600]/70">
+                <div className="p-2 bg-gradient-to-br from-[#5B2600]/5 to-[#5B2600]/10 rounded-lg">
+                  <Calendar className="w-4 h-4 text-[#5B2600]" />
+                </div>
+                <span>{event.date}</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm text-[#5B2600]/70">
+                <div className="p-2 bg-gradient-to-br from-[#5B2600]/5 to-[#5B2600]/10 rounded-lg">
+                  <Clock className="w-4 h-4 text-[#5B2600]" />
+                </div>
+                <span>{event.time}</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm text-[#5B2600]/70">
+                <div className="p-2 bg-gradient-to-br from-[#5B2600]/5 to-[#5B2600]/10 rounded-lg">
+                  <MapPin className="w-4 h-4 text-[#5B2600]" />
+                </div>
+                <span className="line-clamp-1">{event.venue}</span>
+              </div>
+            </div>
           </div>
-          <div className="bg-[#5B2600]/5 rounded-xl p-4">
-            <p className="text-sm text-gray-600 mb-1">Total Pendapatan</p>
-            <p className="font-bold text-[#5B2600] text-lg">
-              Rp {stats.revenue.toLocaleString()}
-            </p>
+
+          {/* Stats Section */}
+          <div className="space-y-5">
+            {/* Ticket Sales Progress */}
+            <div className="bg-gradient-to-br from-[#5B2600]/5 to-[#5B2600]/10 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-[#5B2600]">Tiket Terjual</span>
+                <span className="text-sm font-bold text-[#5B2600]">
+                  {stats.sold}/{event.maxTickets}
+                </span>
+              </div>
+              <div className="relative h-2 bg-[#5B2600]/10 rounded-full overflow-hidden">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(stats.sold / event.maxTickets) * 100}%` }}
+                  transition={{ duration: 1, type: "spring" }}
+                  className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#5B2600] to-[#8B4513] rounded-full"
+                />
+              </div>
+              <div className="mt-2 flex items-center justify-between text-xs text-[#5B2600]/60">
+                <span>{Math.round((stats.sold / event.maxTickets) * 100)}% terjual</span>
+                <span>{event.maxTickets - stats.sold} tersisa</span>
+              </div>
+            </div>
+
+            {/* Price and Revenue */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-gradient-to-br from-[#5B2600]/5 to-[#5B2600]/10 rounded-xl p-4">
+                <p className="text-sm text-[#5B2600]/70 mb-1">Harga Tiket</p>
+                <p className="font-bold text-[#5B2600] text-lg">
+                  Rp {event.price.toLocaleString()}
+                </p>
+              </div>
+              <div className="bg-gradient-to-br from-[#5B2600]/5 to-[#5B2600]/10 rounded-xl p-4">
+                <p className="text-sm text-[#5B2600]/70 mb-1">Total Pendapatan</p>
+                <p className="font-bold text-[#5B2600] text-lg">
+                  Rp {stats.revenue.toLocaleString()}
+                </p>
+              </div>
+            </div>
+
+            {/* Warning Messages */}
+            {(event.maxTickets - stats.sold) < (event.maxTickets * 0.2) && (event.maxTickets - stats.sold) > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-center gap-2 text-amber-600 bg-amber-50 px-4 py-3 rounded-xl"
+              >
+                <AlertTriangle className="w-5 h-5" />
+                <p className="text-sm font-medium">
+                  Hanya tersisa {event.maxTickets - stats.sold} tiket!
+                </p>
+              </motion.div>
+            )}
+            {(event.maxTickets - stats.sold) === 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-center gap-2 text-red-600 bg-red-50 px-4 py-3 rounded-xl"
+              >
+                <AlertTriangle className="w-5 h-5" />
+                <p className="text-sm font-medium">
+                  Tiket sudah habis terjual
+                </p>
+              </motion.div>
+            )}
           </div>
         </div>
-
-        {/* Warning Messages */}
-        {(event.maxTickets - stats.sold) < (event.maxTickets * 0.2) && (event.maxTickets - stats.sold) > 0 && (
-          <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-4 py-3 rounded-xl">
-            <AlertTriangle className="w-5 h-5" />
-            <p className="text-sm font-medium">
-              Hanya tersisa {event.maxTickets - stats.sold} tiket!
-            </p>
-          </div>
-        )}
-        {(event.maxTickets - stats.sold) === 0 && (
-          <div className="flex items-center gap-2 text-red-600 bg-red-50 px-4 py-3 rounded-xl">
-            <AlertTriangle className="w-5 h-5" />
-            <p className="text-sm font-medium">
-              Tiket sudah habis terjual
-            </p>
-          </div>
-        )}
       </div>
-    </div>
-  </motion.div>
-);
+    </motion.div>
+  );
+};
 
 EventCard.propTypes = {
   event: PropTypes.shape({
@@ -1074,7 +1106,8 @@ EventCard.propTypes = {
     time: PropTypes.string.isRequired,
     venue: PropTypes.string.isRequired,
     price: PropTypes.number.isRequired,
-    maxTickets: PropTypes.number.isRequired
+    maxTickets: PropTypes.number.isRequired,
+    category: PropTypes.string.isRequired
   }).isRequired,
   stats: PropTypes.shape({
     sold: PropTypes.number.isRequired,
