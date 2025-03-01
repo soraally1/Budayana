@@ -11,6 +11,7 @@ import AdminRoute from './components/AdminRoute';
 import TicketPage from './components/TicketPage';
 import EventDetail from './components/EventDetail';
 import PaymentComplete from './components/PaymentComplete';
+import AIAssistantPage from './components/AnnaPage';
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
             <Route path="/register" element={<Register />} />
             
             {/* Protected route example */}
+            <Route path="/anna" element={<AIAssistantPage />} />
             <Route path="/community" element={<CommunityPage />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/ticket/:id" element={<TicketDetail />} />
