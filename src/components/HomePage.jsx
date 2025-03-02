@@ -12,6 +12,7 @@ import MusikImg from "../assets/Musik.jpeg";
 import Community from "./Section/Community";
 import Footer from "./Section/Footer";
 import Anna from "./Section/Anna";
+import { Link } from "react-router-dom";
 
 const HomePage = () => {
   // Animation variants for consistent reuse
@@ -90,7 +91,7 @@ const HomePage = () => {
   return (
     <>
       {/* Banner Section */}
-      <div className="relative h-[400px] sm:h-[500px] ipad-mini:h-[550px] ipad-air:h-[580px] lg:h-[600px]">
+      <div className="relative h-[400px] sm:h-[500px] ipad-mini:h-[550px] ipad-air:h-[580px] lg:h-[600px] pt-20">
         {/* Cloud Background */}
         <div className="absolute inset-0 p-4 sm:p-8 ipad-mini:p-12 ipad-air:p-14 lg:p-16">
           <img
@@ -131,13 +132,32 @@ const HomePage = () => {
             </p>
             <button
               className="font-fuzzy bg-brown-800 text-white 
-                             px-6 sm:px-8 
-                             py-2 sm:py-2.5 
-                             rounded-full hover:bg-brown-900 transition-colors 
-                             text-xs sm:text-sm ipad-mini:text-base 
-                             font-medium text-stroke-thick"
+             px-6 sm:px-8 
+             py-2 sm:py-2.5 
+             rounded-full hover:bg-brown-900 transition-all 
+             text-xs sm:text-sm ipad-mini:text-base 
+             font-medium text-stroke-thick
+             hover:scale-105 transform duration-200
+             hover:shadow-lg
+             flex items-center justify-center space-x-2"
             >
-              Cari Tiket!
+              <Link to="/tickets" className="flex items-center">
+                <span>Cari Tiket!</span>
+                <svg
+                  className="w-4 h-4 ml-2 transition-transform duration-200 group-hover:translate-x-1"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M14 5l7 7m0 0l-7 7m7-7H3"
+                  ></path>
+                </svg>
+              </Link>
             </button>
           </div>
         </div>
@@ -145,9 +165,9 @@ const HomePage = () => {
 
       {/* Cloud Gate Group */}
       <div className="relative w-full overflow-hidden px-4 sm:px-8 ipad-mini:px-12 ipad-air:px-14 lg:px-16 mt-20 sm:mt-24 lg:mt-32">
-        <div className="flex justify-between items-center max-w-[2400px] h-[350px] mx-auto">
+        <div className="flex justify-between items-center max-w-[2400px] h-[450px] mx-auto">
           {/* Left Cloud Group */}
-          <div className="relative w-[160px] xs:w-[180px] sm:w-[220px] lg:w-[300px]">
+          <div className="relative w-[160px] xs:w-[180px] sm:w-[240px] lg:w-[400px]">
             {/* Main left cloud */}
             <motion.img
               variants={floatingCloud}
@@ -194,7 +214,7 @@ const HomePage = () => {
           </div>
 
           {/* Right Cloud Group */}
-          <div className="relative w-[160px] xs:w-[180px] sm:w-[220px] lg:w-[300px]">
+          <div className="relative w-[160px] xs:w-[180px] sm:w-[240px] lg:w-[400px]">
             {/* Main right cloud */}
             <motion.img
               variants={floatingCloud}
@@ -399,8 +419,7 @@ const HomePage = () => {
       <div className="relative py-20">
         <Anna />
       </div>
-
-      <Community/>
+      <Community />
       <Footer />
     </>
   );

@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { db } from '../firebase';
-import { collection, getDocs } from 'firebase/firestore';
-import { 
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Link } from "react-router-dom";
+import { db } from "../firebase";
+import { collection, getDocs } from "firebase/firestore";
+import {
   Calendar,
   MapPin,
   Search,
@@ -13,35 +13,35 @@ import {
   Ticket,
   X,
   Loader2,
-  ArrowRight
-} from 'lucide-react';
-import BudayanaLogo from '../assets/Budayana.png';
+  ArrowRight,
+} from "lucide-react";
+import BudayanaLogo from "../assets/Budayana.png";
 
 const TicketPage = () => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
-    location: '',
-    date: '',
-    category: 'all',
+    location: "",
+    date: "",
+    category: "all",
     priceRange: [0, 1000000],
-    time: 'all'
+    time: "all",
   });
-  const [selectedSort, setSelectedSort] = useState('date');
+  const [selectedSort, setSelectedSort] = useState("date");
 
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const eventsRef = collection(db, 'events');
+        const eventsRef = collection(db, "events");
         const eventsSnapshot = await getDocs(eventsRef);
-        const eventsData = eventsSnapshot.docs.map(doc => ({
+        const eventsData = eventsSnapshot.docs.map((doc) => ({
           id: doc.id,
-          ...doc.data()
+          ...doc.data(),
         }));
         setEvents(eventsData);
       } catch (error) {
-        console.error('Error fetching events:', error);
+        console.error("Error fetching events:", error);
       } finally {
         setLoading(false);
       }
@@ -51,26 +51,35 @@ const TicketPage = () => {
   }, []);
 
   const filteredAndSortedEvents = events
-    .filter(event => {
-      if (filters.location && !event.venue.toLowerCase().includes(filters.location.toLowerCase())) return false;
+    .filter((event) => {
+      if (
+        filters.location &&
+        !event.venue.toLowerCase().includes(filters.location.toLowerCase())
+      )
+        return false;
       if (filters.date && event.date !== filters.date) return false;
-      if (filters.category !== 'all' && event.category !== filters.category.replace('-', '')) return false;
-      if (filters.time !== 'all') {
-        const eventHour = parseInt(event.time.split(':')[0]);
-        if (filters.time === 'morning' && eventHour >= 12) return false;
-        if (filters.time === 'afternoon' && (eventHour < 12 || eventHour >= 17)) return false;
-        if (filters.time === 'evening' && eventHour < 17) return false;
+      if (
+        filters.category !== "all" &&
+        event.category !== filters.category.replace("-", "")
+      )
+        return false;
+      if (filters.time !== "all") {
+        const eventHour = parseInt(event.time.split(":")[0]);
+        if (filters.time === "morning" && eventHour >= 12) return false;
+        if (filters.time === "afternoon" && (eventHour < 12 || eventHour >= 17))
+          return false;
+        if (filters.time === "evening" && eventHour < 17) return false;
       }
       return true;
     })
     .sort((a, b) => {
       switch (selectedSort) {
-        case 'price-asc':
+        case "price-asc":
           return a.price - b.price;
-        case 'price-desc':
+        case "price-desc":
           return b.price - a.price;
-        case 'popularity':
-          return (b.maxTickets - b.ticketsSold) - (a.maxTickets - a.ticketsSold);
+        case "popularity":
+          return b.maxTickets - b.ticketsSold - (a.maxTickets - a.ticketsSold);
         default:
           return new Date(a.date) - new Date(b.date);
       }
@@ -255,13 +264,15 @@ const TicketPage = () => {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-32">
           {/* Logo and Text Container */}
           <div className="max-w-4xl mx-auto text-center mb-12">
-            <motion.img
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              src={BudayanaLogo}
-              alt="Budayana Logo"
-              className="h-14 sm:h-16 md:h-20 mx-auto mb-8 sm:mb-10"
-            />
+            <Link to="/">
+              <motion.img
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                src={BudayanaLogo}
+                alt="Budayana Logo"
+                className="h-14 sm:h-16 md:h-20 mx-auto mb-8 sm:mb-10"
+              />
+            </Link>
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -273,7 +284,8 @@ const TicketPage = () => {
                 Temukan Event Budaya
               </h1>
               <p className="text-base sm:text-lg md:text-xl text-white/80 max-w-2xl mx-auto">
-                Jelajahi berbagai event budaya menarik di sekitarmu dan dapatkan pengalaman yang tak terlupakan
+                Jelajahi berbagai event budaya menarik di sekitarmu dan dapatkan
+                pengalaman yang tak terlupakan
               </p>
             </motion.div>
           </div>
@@ -299,7 +311,12 @@ const TicketPage = () => {
                       placeholder="Nama event atau lokasi..."
                       className="w-full pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 text-sm rounded-xl border border-[#8B4513]/20 focus:outline-none focus:ring-2 focus:ring-[#5B2600] bg-white/80 hover:bg-white transition-colors"
                       value={filters.location}
-                      onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
+                      onChange={(e) =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          location: e.target.value,
+                        }))
+                      }
                     />
                   </div>
                 </div>
@@ -315,7 +332,12 @@ const TicketPage = () => {
                       type="date"
                       className="w-full pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 text-sm rounded-xl border border-[#8B4513]/20 focus:outline-none focus:ring-2 focus:ring-[#5B2600] bg-white/80 hover:bg-white transition-colors"
                       value={filters.date}
-                      onChange={(e) => setFilters(prev => ({ ...prev, date: e.target.value }))}
+                      onChange={(e) =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          date: e.target.value,
+                        }))
+                      }
                     />
                   </div>
                 </div>
@@ -329,12 +351,21 @@ const TicketPage = () => {
                     <select
                       className="w-full px-4 py-2.5 sm:py-3 text-sm rounded-xl border border-[#8B4513]/20 focus:outline-none focus:ring-2 focus:ring-[#5B2600] appearance-none bg-white/80 hover:bg-white transition-colors"
                       value={filters.category}
-                      onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))}
+                      onChange={(e) =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          category: e.target.value,
+                        }))
+                      }
                     >
                       <option value="all">Semua</option>
                       <option value="tari-tradisional">Tari Tradisional</option>
-                      <option value="musik-tradisional">Musik Tradisional</option>
-                      <option value="drama-tradisional">Drama Tradisional</option>
+                      <option value="musik-tradisional">
+                        Musik Tradisional
+                      </option>
+                      <option value="drama-tradisional">
+                        Drama Tradisional
+                      </option>
                       <option value="upacara-adat">Upacara Adat</option>
                       <option value="festival-budaya">Festival Budaya</option>
                       <option value="workshop-budaya">Workshop Budaya</option>
@@ -348,7 +379,7 @@ const TicketPage = () => {
                   <label className="text-xs sm:text-sm font-medium text-transparent mb-1.5 block">
                     Filter
                   </label>
-                  <button 
+                  <button
                     onClick={() => setShowFilters(true)}
                     className="w-full py-2.5 sm:py-3 px-4 rounded-xl bg-[#5B2600] text-white text-sm font-medium hover:bg-[#4A3427] transition-colors flex items-center justify-center gap-2 group"
                   >
@@ -380,7 +411,7 @@ const TicketPage = () => {
                   Menampilkan event budaya yang tersedia
                 </p>
               </div>
-              
+
               <div className="flex items-center gap-3">
                 <select
                   value={selectedSort}
@@ -406,10 +437,7 @@ const TicketPage = () => {
                     exit={{ opacity: 0, y: -20 }}
                     transition={{ delay: index * 0.1 }}
                   >
-                    <Link 
-                      to={`/event/${event.id}`}
-                      className="block group"
-                    >
+                    <Link to={`/event/${event.id}`} className="block group">
                       <div className="ticket-shape shadow-lg transition-all hover:shadow-xl">
                         <div className="ticket-notch ticket-notch-top" />
                         <div className="ticket-notch ticket-notch-bottom" />
@@ -419,7 +447,7 @@ const TicketPage = () => {
                           <div className="sm:w-[35%] p-4 sm:p-6 ticket-left-section">
                             <div className="aspect-[16/9] sm:aspect-[4/3] rounded-xl sm:rounded-2xl overflow-hidden shadow-md">
                               <img
-                                src={event.imageUrl || '/default-event.jpg'}
+                                src={event.imageUrl || "/default-event.jpg"}
                                 alt={event.name}
                                 className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
                               />
@@ -447,12 +475,16 @@ const TicketPage = () => {
 
                             <div className="flex items-center gap-2 mb-4">
                               <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#8B4513]" />
-                              <span className="text-xs sm:text-sm text-[#5B2600] line-clamp-1">{event.venue}</span>
+                              <span className="text-xs sm:text-sm text-[#5B2600] line-clamp-1">
+                                {event.venue}
+                              </span>
                             </div>
 
                             <div className="flex items-center justify-between">
                               <div>
-                                <p className="text-[10px] sm:text-xs text-[#8B4513]">Harga Tiket</p>
+                                <p className="text-[10px] sm:text-xs text-[#8B4513]">
+                                  Harga Tiket
+                                </p>
                                 <p className="text-base sm:text-lg md:text-2xl font-bold text-[#5B2600]">
                                   Rp {event.price.toLocaleString()}
                                 </p>
@@ -465,17 +497,24 @@ const TicketPage = () => {
 
                             <div className="mt-3 pt-3 sm:mt-4 sm:pt-4 border-t border-[#E8DED5]">
                               <div className="flex items-center justify-between text-sm">
-                                <span className="text-[10px] sm:text-xs text-[#8B4513]">Tiket Tersedia</span>
-                                <span className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium ${
-                                  event.maxTickets - event.ticketsSold === 0
-                                    ? 'bg-red-100 text-red-700'
-                                    : (event.maxTickets - event.ticketsSold) < (event.maxTickets * 0.2)
-                                    ? 'bg-amber-100 text-amber-700'
-                                    : 'bg-green-100 text-green-700'
-                                }`}>
-                                  {event.maxTickets - event.ticketsSold === 0 
-                                    ? 'Sold Out' 
-                                    : `${event.maxTickets - event.ticketsSold} Tersisa`}
+                                <span className="text-[10px] sm:text-xs text-[#8B4513]">
+                                  Tiket Tersedia
+                                </span>
+                                <span
+                                  className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium ${
+                                    event.maxTickets - event.ticketsSold === 0
+                                      ? "bg-red-100 text-red-700"
+                                      : event.maxTickets - event.ticketsSold <
+                                        event.maxTickets * 0.2
+                                      ? "bg-amber-100 text-amber-700"
+                                      : "bg-green-100 text-green-700"
+                                  }`}
+                                >
+                                  {event.maxTickets - event.ticketsSold === 0
+                                    ? "Sold Out"
+                                    : `${
+                                        event.maxTickets - event.ticketsSold
+                                      } Tersisa`}
                                 </span>
                               </div>
                             </div>
@@ -499,8 +538,8 @@ const TicketPage = () => {
                     Tidak Ada Event
                   </h3>
                   <p className="text-sm text-[#8B4513]/60 max-w-md mx-auto">
-                    Tidak ada event yang sesuai dengan filter yang dipilih. 
-                    Coba ubah filter atau cari dengan kata kunci lain.
+                    Tidak ada event yang sesuai dengan filter yang dipilih. Coba
+                    ubah filter atau cari dengan kata kunci lain.
                   </p>
                 </motion.div>
               )}
@@ -524,7 +563,7 @@ const TicketPage = () => {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 100, opacity: 0 }}
               className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
-              onClick={e => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
             >
               <div className="p-6 space-y-6">
                 <div className="flex items-center justify-between">
@@ -546,19 +585,23 @@ const TicketPage = () => {
                       Waktu
                     </label>
                     <div className="grid grid-cols-3 gap-2">
-                      {['morning', 'afternoon', 'evening'].map((time) => (
+                      {["morning", "afternoon", "evening"].map((time) => (
                         <button
                           key={time}
-                          onClick={() => setFilters(prev => ({ ...prev, time }))}
+                          onClick={() =>
+                            setFilters((prev) => ({ ...prev, time }))
+                          }
                           className={`py-2 px-3 rounded-xl text-sm font-medium transition-all ${
                             filters.time === time
-                              ? 'bg-[#5B2600] text-white shadow-lg scale-[1.02]'
-                              : 'bg-[#8B4513]/10 text-[#5B2600] hover:bg-[#8B4513]/20'
+                              ? "bg-[#5B2600] text-white shadow-lg scale-[1.02]"
+                              : "bg-[#8B4513]/10 text-[#5B2600] hover:bg-[#8B4513]/20"
                           }`}
                         >
-                          {time === 'morning' ? 'Pagi'
-                            : time === 'afternoon' ? 'Siang'
-                            : 'Malam'}
+                          {time === "morning"
+                            ? "Pagi"
+                            : time === "afternoon"
+                            ? "Siang"
+                            : "Malam"}
                         </button>
                       ))}
                     </div>
@@ -576,10 +619,15 @@ const TicketPage = () => {
                           placeholder="Min"
                           className="w-full pl-3 pr-8 py-2 rounded-xl border border-[#8B4513]/20 text-sm focus:outline-none focus:ring-2 focus:ring-[#5B2600] group-hover:border-[#8B4513]/40 transition-colors"
                           value={filters.priceRange[0]}
-                          onChange={(e) => setFilters(prev => ({
-                            ...prev,
-                            priceRange: [parseInt(e.target.value) || 0, prev.priceRange[1]]
-                          }))}
+                          onChange={(e) =>
+                            setFilters((prev) => ({
+                              ...prev,
+                              priceRange: [
+                                parseInt(e.target.value) || 0,
+                                prev.priceRange[1],
+                              ],
+                            }))
+                          }
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#8B4513]/60">
                           Rp
@@ -591,10 +639,15 @@ const TicketPage = () => {
                           placeholder="Max"
                           className="w-full pl-3 pr-8 py-2 rounded-xl border border-[#8B4513]/20 text-sm focus:outline-none focus:ring-2 focus:ring-[#5B2600] group-hover:border-[#8B4513]/40 transition-colors"
                           value={filters.priceRange[1]}
-                          onChange={(e) => setFilters(prev => ({
-                            ...prev,
-                            priceRange: [prev.priceRange[0], parseInt(e.target.value) || 0]
-                          }))}
+                          onChange={(e) =>
+                            setFilters((prev) => ({
+                              ...prev,
+                              priceRange: [
+                                prev.priceRange[0],
+                                parseInt(e.target.value) || 0,
+                              ],
+                            }))
+                          }
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#8B4513]/60">
                           Rp
@@ -609,11 +662,11 @@ const TicketPage = () => {
                   <button
                     onClick={() => {
                       setFilters({
-                        location: '',
-                        date: '',
-                        category: 'all',
+                        location: "",
+                        date: "",
+                        category: "all",
                         priceRange: [0, 1000000],
-                        time: 'all'
+                        time: "all",
                       });
                       setShowFilters(false);
                     }}
@@ -640,4 +693,4 @@ const TicketPage = () => {
   );
 };
 
-export default TicketPage; 
+export default TicketPage;

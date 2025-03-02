@@ -4,6 +4,14 @@ import { IoIosArrowUp } from "react-icons/io";
 import Budayana from "../../assets/Budayana.png";
 
 export default function Footer() {
+  // Fungsi untuk scroll ke atas
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
+
   return (
     <footer className="bg-gradient-to-b from-[#EAD9C5] via-[#571F02] to-[#602402] p-4 md:p-6 text-white">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-4 md:gap-6 justify-between">
@@ -57,11 +65,15 @@ export default function Footer() {
         transition={{ delay: 0.4 }}
         className="mt-4 md:mt-6 flex flex-col md:flex-row justify-between items-center border-t border-white/20 pt-3 md:pt-4 text-center md:text-left"
       >
-        <p className="text-xs md:text-sm">&copy; 2025 Dibuat Penuh Sigma</p>
+        <p className="text-xs md:text-sm">&copy; 2025 Dibuat Penuh Cinta</p>
         <div className="flex gap-3 md:gap-4 mt-2 md:mt-0">
           <FaFacebook className="text-lg md:text-xl cursor-pointer hover:text-gray-300 transition duration-200" />
           <FaInstagram className="text-lg md:text-xl cursor-pointer hover:text-gray-300 transition duration-200" />
-          <motion.div whileHover={{ y: -5 }} className="cursor-pointer">
+          <motion.div
+            whileHover={{ y: -5 }}
+            className="cursor-pointer"
+            onClick={scrollToTop}
+          >
             <IoIosArrowUp className="text-lg md:text-xl" />
           </motion.div>
         </div>
