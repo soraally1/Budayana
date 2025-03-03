@@ -184,17 +184,26 @@ const AdminPage = () => {
         const eventsData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate() || new Date()
+          createdAt: doc.data().createdAt?.toDate() || new Date(),
+          ticketsSold: doc.data().ticketsSold || 0,
+          price: Number(doc.data().price) || 0
         }));
         setEvents(eventsData);
       });
 
-      const ticketsQuery = query(collection(db, 'tickets'));
+      const ticketsQuery = query(collection(db, 'tickets'), orderBy('purchaseDate', 'desc'));
       const unsubscribeTickets = onSnapshot(ticketsQuery, (snapshot) => {
-        const ticketsData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
+        const ticketsData = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            quantity: Number(data.quantity) || 1,
+            price: Number(data.price) || 0,
+            totalPrice: Number(data.totalPrice) || 0,
+            purchaseDate: data.purchaseDate?.toDate() || new Date()
+          };
+        });
         setTickets(ticketsData);
       });
 
@@ -327,11 +336,18 @@ const AdminPage = () => {
 
   // Get ticket stats
   const getTicketStats = (eventId) => {
-    const eventTickets = tickets.filter(ticket => ticket.eventId === eventId);
+    const event = events.find(e => e.id === eventId);
     return {
-      sold: eventTickets.length,
-      revenue: eventTickets.reduce((sum, ticket) => sum + (ticket.price || 0), 0)
+      sold: event?.ticketsSold || 0,
+      revenue: (event?.ticketsSold || 0) * (event?.price || 0)
     };
+  };
+
+  // Calculate total revenue from all events
+  const calculateTotalRevenue = () => {
+    return events.reduce((sum, event) => {
+      return sum + ((event.ticketsSold || 0) * (event.price || 0));
+    }, 0);
   };
 
   // Sort events
@@ -404,19 +420,19 @@ const AdminPage = () => {
           />
           <StatsCard
             title="Tiket Terjual"
-            value={tickets.length}
+            value={events.reduce((sum, event) => sum + (event.ticketsSold || 0), 0)}
             icon={TicketIcon}
             subtitle={`${events.reduce((sum, event) => sum + (event.maxTickets || 0), 0)} total kapasitas`}
-            trend={`${Math.round((tickets.length / events.reduce((sum, event) => sum + (event.maxTickets || 0), 0)) * 100)}%`}
+            trend={`${Math.round((events.reduce((sum, event) => sum + (event.ticketsSold || 0), 0) / events.reduce((sum, event) => sum + (event.maxTickets || 0), 0)) * 100)}%`}
             trendUp={true}
           />
           <StatsCard
             title="Total Pendapatan"
-            value={`Rp ${tickets.reduce((sum, ticket) => sum + (ticket.price || 0), 0).toLocaleString()}`}
+            value={`Rp ${calculateTotalRevenue().toLocaleString()}`}
             icon={DollarSign}
-            subtitle="Dari semua event"
-            trend="+12.5%"
-            trendUp={true}
+            subtitle={`${tickets.length} transaksi`}
+            trend={tickets.length > 0 ? '+' + tickets.length : '0'}
+            trendUp={tickets.length > 0}
           />
           <StatsCard
             title="Rata-rata Harga"

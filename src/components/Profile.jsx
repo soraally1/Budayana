@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { auth, db } from '../firebase';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, setDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { 
   User, Camera, Loader2, CheckCircle2, AlertCircle, Pencil, 
-  Calendar, History, Mail, Clock, MapPin, Ticket as TicketIcon,
-  Users, ChevronRight
+  Calendar, History, Mail
 } from 'lucide-react';
 import BudayanaLogo from '../assets/Budayana.png';
 import TicketCard from './TicketCard';
@@ -465,7 +464,7 @@ const Profile = () => {
                       className="flex-1 py-2.5 sm:py-3 px-4 sm:px-6 bg-[#8B4513] text-white rounded-xl font-fuzzy text-xs sm:text-sm hover:bg-[#5B2600] transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
                     >
                       {updating ? (
-                        <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                        <Loader2 className="w-4 h-4 sm:w-5 sm:w-5 animate-spin" />
                       ) : (
                         <>
                           <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -562,7 +561,9 @@ const Profile = () => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3, delay: index * 0.1 }}
                       >
-                        <TicketCard ticket={ticket} />
+                        <Link to="/tickets" className="block">
+                          <TicketCard ticket={ticket} />
+                        </Link>
                       </motion.div>
                     ))}
                     <p className="text-center text-xs sm:text-sm text-[#8B4513]/60 font-fuzzy mt-2 sm:mt-4">

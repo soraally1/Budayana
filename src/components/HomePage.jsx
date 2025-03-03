@@ -287,112 +287,118 @@ const HomePage = () => {
             className="flex flex-col sm:flex-row gap-16 sm:gap-8 md:gap-12 lg:gap-16 justify-center items-end mt-8"
           >
             {/* Traditional Dance Card */}
-            <motion.div
-              variants={cardVariants}
-              whileHover="hover"
-              className="relative w-[220px] xs:w-[240px] sm:w-[220px] md:w-[240px] lg:w-[280px] mx-auto sm:mx-0"
-            >
+            <Link to="/tickets?category=tari-tradisional" className="block">
               <motion.div
-                whileHover={{ scale: 1.02 }}
-                className="relative aspect-[3/5] rounded-[32px] overflow-hidden bg-[#F5F5F5]"
+                variants={cardVariants}
+                whileHover="hover"
+                className="relative w-[220px] xs:w-[240px] sm:w-[220px] md:w-[240px] lg:w-[280px] mx-auto sm:mx-0"
               >
-                <img
-                  src={NariImg}
-                  alt="Traditional Dance"
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute top-3 sm:top-4 right-3 sm:right-4">
-                  <div className="bg-[#4A3427] rounded-full px-2 sm:px-3 py-1">
-                    <span className="text-white text-xs sm:text-sm font-fuzzy">
-                      Cek Event!
-                    </span>
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  className="relative aspect-[3/5] rounded-[32px] overflow-hidden bg-[#F5F5F5] shadow-lg hover:shadow-xl transition-shadow duration-300"
+                >
+                  <img
+                    src={NariImg}
+                    alt="Traditional Dance"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute top-3 sm:top-4 right-3 sm:right-4">
+                    <div className="bg-[#4A3427] rounded-full px-2 sm:px-3 py-1">
+                      <span className="text-white text-xs sm:text-sm font-fuzzy">
+                        Cek Event!
+                      </span>
+                    </div>
                   </div>
-                </div>
+                </motion.div>
+                <motion.div
+                  className="absolute -bottom-4 sm:-bottom-5 right-16 sm:right-20 pr-4 sm:pr-5"
+                  whileHover={{ y: -3 }}
+                  transition={{ type: "spring", stiffness: 300 }}
+                >
+                  <img
+                    src={TariTraditional}
+                    alt="Tari Traditional"
+                    className="w-[150%] sm:w-[160%] max-w-[500px] mx-auto"
+                  />
+                </motion.div>
               </motion.div>
-              <motion.div
-                className="absolute -bottom-4 sm:-bottom-5 right-16 sm:right-20 pr-4 sm:pr-5"
-                whileHover={{ y: -3 }}
-                transition={{ type: "spring", stiffness: 300 }}
-              >
-                <img
-                  src={TariTraditional}
-                  alt="Tari Traditional"
-                  className="w-[150%] sm:w-[160%] max-w-[500px] mx-auto"
-                />
-              </motion.div>
-            </motion.div>
+            </Link>
 
             {/* Drama Card - Larger */}
-            <motion.div
-              variants={cardVariants}
-              whileHover="hover"
-              className="relative w-[260px] xs:w-[280px] sm:w-[260px] md:w-[280px] lg:w-[350px] sm:-mb-6 mx-auto sm:mx-0"
-            >
+            <Link to="/tickets?category=drama-tradisional" className="block">
               <motion.div
-                whileHover={{ scale: 1.02 }}
-                className="relative aspect-[3/5] rounded-[32px] overflow-hidden bg-[#F5F5F5]"
+                variants={cardVariants}
+                whileHover="hover"
+                className="relative w-[260px] xs:w-[280px] sm:w-[260px] md:w-[280px] lg:w-[350px] sm:-mb-6 mx-auto sm:mx-0"
               >
-                <img
-                  src={DramaImg}
-                  alt="Drama"
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute top-3 sm:top-4 right-3 sm:right-4">
-                  <div className="bg-[#4A3427] rounded-full px-2 sm:px-3 py-1">
-                    <span className="text-white text-xs sm:text-sm font-fuzzy">
-                      Cek Event!
-                    </span>
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  className="relative aspect-[3/5] rounded-[32px] overflow-hidden bg-[#F5F5F5] shadow-lg hover:shadow-xl transition-shadow duration-300"
+                >
+                  <img
+                    src={DramaImg}
+                    alt="Drama"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute top-3 sm:top-4 right-3 sm:right-4">
+                    <div className="bg-[#4A3427] rounded-full px-2 sm:px-3 py-1">
+                      <span className="text-white text-xs sm:text-sm font-fuzzy">
+                        Cek Event!
+                      </span>
+                    </div>
                   </div>
-                </div>
+                </motion.div>
+                <motion.div
+                  className="absolute -bottom-6 sm:-bottom-8 left-0 right-0"
+                  whileHover={{ y: -3 }}
+                  transition={{ type: "spring", stiffness: 300 }}
+                >
+                  <img
+                    src={Drama}
+                    alt="Drama"
+                    className="w-[90%] sm:w-[100%] max-w-[320px] mx-auto"
+                  />
+                </motion.div>
               </motion.div>
-              <motion.div
-                className="absolute -bottom-6 sm:-bottom-8 left-0 right-0"
-                whileHover={{ y: -3 }}
-                transition={{ type: "spring", stiffness: 300 }}
-              >
-                <img
-                  src={Drama}
-                  alt="Drama"
-                  className="w-[90%] sm:w-[100%] max-w-[320px] mx-auto"
-                />
-              </motion.div>
-            </motion.div>
+            </Link>
 
             {/* Traditional Music Card */}
-            <motion.div
-              variants={cardVariants}
-              whileHover="hover"
-              className="relative w-[220px] xs:w-[240px] sm:w-[220px] md:w-[240px] lg:w-[280px] mx-auto sm:mx-0"
-            >
+            <Link to="/tickets?category=musik-tradisional" className="block">
               <motion.div
-                whileHover={{ scale: 1.02 }}
-                className="relative aspect-[3/5] rounded-[32px] overflow-hidden bg-[#F5F5F5]"
+                variants={cardVariants}
+                whileHover="hover"
+                className="relative w-[220px] xs:w-[240px] sm:w-[220px] md:w-[240px] lg:w-[280px] mx-auto sm:mx-0"
               >
-                <img
-                  src={MusikImg}
-                  alt="Traditional Music"
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute top-3 sm:top-4 right-3 sm:right-4">
-                  <div className="bg-[#4A3427] rounded-full px-2 sm:px-3 py-1">
-                    <span className="text-white text-xs sm:text-sm font-fuzzy">
-                      Cek Event!
-                    </span>
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  className="relative aspect-[3/5] rounded-[32px] overflow-hidden bg-[#F5F5F5] shadow-lg hover:shadow-xl transition-shadow duration-300"
+                >
+                  <img
+                    src={MusikImg}
+                    alt="Traditional Music"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute top-3 sm:top-4 right-3 sm:right-4">
+                    <div className="bg-[#4A3427] rounded-full px-2 sm:px-3 py-1">
+                      <span className="text-white text-xs sm:text-sm font-fuzzy">
+                        Cek Event!
+                      </span>
+                    </div>
                   </div>
-                </div>
+                </motion.div>
+                <motion.div
+                  className="absolute -bottom-6 sm:-bottom-8 right-12 sm:right-16 pr-4 sm:pr-5"
+                  whileHover={{ y: -3 }}
+                  transition={{ type: "spring", stiffness: 300 }}
+                >
+                  <img
+                    src={MusikTraditional}
+                    alt="Musik Traditional"
+                    className="w-[150%] sm:w-[160%] max-w-[400px] mx-auto"
+                  />
+                </motion.div>
               </motion.div>
-              <motion.div
-                className="absolute -bottom-6 sm:-bottom-8 right-12 sm:right-16 pr-4 sm:pr-5"
-                whileHover={{ y: -3 }}
-                transition={{ type: "spring", stiffness: 300 }}
-              >
-                <img
-                  src={MusikTraditional}
-                  alt="Musik Traditional"
-                  className="w-[150%] sm:w-[160%] max-w-[400px] mx-auto"
-                />
-              </motion.div>
-            </motion.div>
+            </Link>
           </motion.div>
 
           {/* Description */}

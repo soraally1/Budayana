@@ -7,7 +7,8 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      return request.auth != null && request.auth.token.admin == true;
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
     function isOwner(userId) {
@@ -75,6 +76,23 @@ service cloud.firestore {
       allow read: if true;
       allow create, update: if isOwner(userId);
       allow delete: if isAdmin();
+    }
+
+    // BudayaPosts collection
+    match /budayaPosts/{postId} {
+      // Anyone can read posts
+      allow read: if true;
+      
+      // Allow create if user is authenticated and provides required fields
+      allow create: if isAuthenticated() && 
+        request.resource.data.keys().hasAll(['title', 'description', 'category', 'hashtags', 'image', 'createdAt', 'author', 'authorId']) &&
+        request.resource.data.authorId == request.auth.uid;
+      
+      // Allow update and delete if user is the author or an admin
+      allow update, delete: if isAuthenticated() && (
+        resource.data.authorId == request.auth.uid || 
+        isAdmin()
+      );
     }
   }
 } 

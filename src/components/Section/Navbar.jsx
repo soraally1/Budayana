@@ -200,11 +200,11 @@ const Navbar = () => {
 
   const navbarContent = (
     <>
-      <Link to="/">
+      <Link to="/anna">
         <motion.span className="w-12 lg:w-16 shrink-0">
           <img 
             src={Anna1} 
-            alt="Budayana Logo" 
+            alt="Anna Logo" 
             className="rounded-md w-full h-full object-cover" 
           />
         </motion.span>
@@ -267,7 +267,7 @@ const Navbar = () => {
         >
           <img 
             src={Anna1} 
-            alt="Budayana Logo" 
+            alt="Anna Logo" 
             className="h-10 w-10 object-contain" 
           />
         </motion.div>
