@@ -3,58 +3,14 @@ import BannerHero from "../assets/BannerHero.png";
 import CloudBanner from "../assets/CloudBanner.jpeg";
 import BudayanaLogo from "../assets/Budayana.png";
 import Cloud from "../assets/Cloud.png";
-import TariTraditional from "../assets/TariTraditional.png";
-import Drama from "../assets/Drama.png";
-import MusikTraditional from "../assets/MusikTraditional.png";
-import NariImg from "../assets/Nari.jpeg";
-import DramaImg from "../assets/Drama.jpeg";
-import MusikImg from "../assets/Musik.jpeg";
 import Community from "./Section/Community";
 import Footer from "./Section/Footer";
 import Anna from "./Section/Anna";
+import Event from './Section/Event';
 import { Link } from "react-router-dom";
 
 const HomePage = () => {
-  // Animation variants for consistent reuse
-  const fadeInUp = {
-    hidden: { opacity: 0, y: 60 },
-    visible: { opacity: 1, y: 0 },
-  };
-
-  const cardVariants = {
-    hidden: { opacity: 0, y: 80, scale: 0.95 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      transition: {
-        type: "spring",
-        stiffness: 100,
-        damping: 12,
-      },
-    },
-    hover: {
-      scale: 1.03,
-      y: -5,
-      transition: {
-        type: "spring",
-        stiffness: 400,
-        damping: 10,
-      },
-    },
-  };
-
-  const container = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.2,
-        delayChildren: 0.3,
-      },
-    },
-  };
-
+  // Animation variants for cloud movements
   const floatingCloud = {
     animate: {
       y: [0, -15, 0],
@@ -260,173 +216,22 @@ const HomePage = () => {
       </div>
 
       {/* Event Section */}
-      <div className="relative w-full px-4 sm:px-6 md:px-8 lg:px-16 mt-16 sm:mt-20 md:mt-24">
-        <div className="max-w-[1400px] mx-auto">
-          {/* Title */}
-          <motion.h1
-            variants={fadeInUp}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            transition={{
-              duration: 0.8,
-              type: "spring",
-              stiffness: 100,
-            }}
-            className="font-fuzzy text-[#4A3427] text-2xl xs:text-3xl sm:text-4xl lg:text-5xl text-center font-bold mb-12 sm:mb-16"
-          >
-            Jelajahi Event Budaya!
-          </motion.h1>
-
-          {/* Cards Container */}
-          <motion.div
-            variants={container}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            className="flex flex-col sm:flex-row gap-16 sm:gap-8 md:gap-12 lg:gap-16 justify-center items-end mt-8"
-          >
-            {/* Traditional Dance Card */}
-            <Link to="/tickets?category=tari-tradisional" className="block">
-              <motion.div
-                variants={cardVariants}
-                whileHover="hover"
-                className="relative w-[220px] xs:w-[240px] sm:w-[220px] md:w-[240px] lg:w-[280px] mx-auto sm:mx-0"
-              >
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  className="relative aspect-[3/5] rounded-[32px] overflow-hidden bg-[#F5F5F5] shadow-lg hover:shadow-xl transition-shadow duration-300"
-                >
-                  <img
-                    src={NariImg}
-                    alt="Traditional Dance"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute top-3 sm:top-4 right-3 sm:right-4">
-                    <div className="bg-[#4A3427] rounded-full px-2 sm:px-3 py-1">
-                      <span className="text-white text-xs sm:text-sm font-fuzzy">
-                        Cek Event!
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-                <motion.div
-                  className="absolute -bottom-4 sm:-bottom-5 right-16 sm:right-20 pr-4 sm:pr-5"
-                  whileHover={{ y: -3 }}
-                  transition={{ type: "spring", stiffness: 300 }}
-                >
-                  <img
-                    src={TariTraditional}
-                    alt="Tari Traditional"
-                    className="w-[150%] sm:w-[160%] max-w-[500px] mx-auto"
-                  />
-                </motion.div>
-              </motion.div>
-            </Link>
-
-            {/* Drama Card - Larger */}
-            <Link to="/tickets?category=drama-tradisional" className="block">
-              <motion.div
-                variants={cardVariants}
-                whileHover="hover"
-                className="relative w-[260px] xs:w-[280px] sm:w-[260px] md:w-[280px] lg:w-[350px] sm:-mb-6 mx-auto sm:mx-0"
-              >
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  className="relative aspect-[3/5] rounded-[32px] overflow-hidden bg-[#F5F5F5] shadow-lg hover:shadow-xl transition-shadow duration-300"
-                >
-                  <img
-                    src={DramaImg}
-                    alt="Drama"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute top-3 sm:top-4 right-3 sm:right-4">
-                    <div className="bg-[#4A3427] rounded-full px-2 sm:px-3 py-1">
-                      <span className="text-white text-xs sm:text-sm font-fuzzy">
-                        Cek Event!
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-                <motion.div
-                  className="absolute -bottom-6 sm:-bottom-8 left-0 right-0"
-                  whileHover={{ y: -3 }}
-                  transition={{ type: "spring", stiffness: 300 }}
-                >
-                  <img
-                    src={Drama}
-                    alt="Drama"
-                    className="w-[90%] sm:w-[100%] max-w-[320px] mx-auto"
-                  />
-                </motion.div>
-              </motion.div>
-            </Link>
-
-            {/* Traditional Music Card */}
-            <Link to="/tickets?category=musik-tradisional" className="block">
-              <motion.div
-                variants={cardVariants}
-                whileHover="hover"
-                className="relative w-[220px] xs:w-[240px] sm:w-[220px] md:w-[240px] lg:w-[280px] mx-auto sm:mx-0"
-              >
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  className="relative aspect-[3/5] rounded-[32px] overflow-hidden bg-[#F5F5F5] shadow-lg hover:shadow-xl transition-shadow duration-300"
-                >
-                  <img
-                    src={MusikImg}
-                    alt="Traditional Music"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute top-3 sm:top-4 right-3 sm:right-4">
-                    <div className="bg-[#4A3427] rounded-full px-2 sm:px-3 py-1">
-                      <span className="text-white text-xs sm:text-sm font-fuzzy">
-                        Cek Event!
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-                <motion.div
-                  className="absolute -bottom-6 sm:-bottom-8 right-12 sm:right-16 pr-4 sm:pr-5"
-                  whileHover={{ y: -3 }}
-                  transition={{ type: "spring", stiffness: 300 }}
-                >
-                  <img
-                    src={MusikTraditional}
-                    alt="Musik Traditional"
-                    className="w-[150%] sm:w-[160%] max-w-[400px] mx-auto"
-                  />
-                </motion.div>
-              </motion.div>
-            </Link>
-          </motion.div>
-
-          {/* Description */}
-          <motion.p
-            variants={fadeInUp}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            transition={{
-              duration: 0.8,
-              delay: 0.8,
-              type: "spring",
-              stiffness: 100,
-            }}
-            className="font-fuzzy text-[#4A3427] text-base xs:text-lg sm:text-xl text-center max-w-[800px] mx-auto mt-20 sm:mt-24 md:mt-28"
-          >
-            Di Indonesia, ada ratusan event budaya menarik yang sayang untuk
-            dilewatkan!
-          </motion.p>
-        </div>
-      </div>
+      <Event />
 
       {/* Anna Section */}
-      <div className="relative py-20">
+      <div className="relative py-24 overflow-clip">
         <Anna />
       </div>
-      <Community />
-      <Footer />
+
+      {/* Community Section */}
+      <div className="relative ">
+        <Community />
+      </div>
+
+      {/* Footer Section */}
+      <div className="relative">
+        <Footer />
+      </div>
     </>
   );
 };

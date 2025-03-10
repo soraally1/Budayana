@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './firebase';
@@ -46,9 +46,30 @@ ProtectedRoute.propTypes = {
   children: PropTypes.node.isRequired
 };
 
+// 404 Not Found Component
+const NotFound = () => {
+  return (
+    <div className="min-h-screen bg-[#EBE3D5] flex flex-col items-center justify-center p-4">
+      <h1 className="text-4xl font-fuzzy text-[#4A3427] font-bold mb-4">404 - Page Not Found</h1>
+      <p className="text-[#4A3427] mb-6 text-center">
+        The page you&apos;re looking for doesn&apos;t exist or has been moved.
+      </p>
+      <Link 
+        to="/" 
+        className="px-6 py-3 bg-[#8B4513] text-white rounded-xl font-fuzzy hover:bg-[#5B2600] transition-colors"
+      >
+        Back to Home
+      </Link>
+    </div>
+  );
+};
+
+// Get base URL from environment or default to '/'
+const baseUrl = import.meta.env.PUBLIC_URL || '/';
+
 function App() {
   return (
-    <Router>
+    <Router basename={baseUrl}>
       <div className="relative min-h-screen bg-[#EBE3D5]">
         <Navbar />
         <main>
@@ -96,8 +117,11 @@ function App() {
               </AdminRoute>
             } />
 
-            {/* Catch all - redirect to home */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            {/* 404 route */}
+            <Route path="/404" element={<NotFound />} />
+            
+            {/* Catch all - redirect to 404 */}
+            <Route path="*" element={<Navigate to="/404" replace />} />
           </Routes>
         </main>
       </div>

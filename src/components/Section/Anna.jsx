@@ -33,15 +33,15 @@ const Anna = () => {
   }, []);
   
   return (
-    <div className="relative w-full px-4 sm:px-6 md:px-8 lg:px-16 mt-16 sm:mt-20 md:mt-24">
-      <div className="max-w-[1100px] mx-auto">
+    <div className="relative w-full mt-16 sm:mt-20 md:mt-24">
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 md:px-8 lg:px-16">
         {/* Background Element dengan paralaks */}
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 0.1 }}
           viewport={{ once: true }}
           transition={{ duration: 1 }}
-          className="absolute inset-0 z-0 overflow-hidden"
+          className="absolute inset-0 z-0"
         >
           <motion.div 
             animate={{ 
