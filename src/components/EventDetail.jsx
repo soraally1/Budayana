@@ -254,7 +254,11 @@ const EventDetail = () => {
         const ticketsRef = collection(db, 'tickets');
         const q = query(ticketsRef, where('eventId', '==', event.id));
         const ticketDocs = await getDocs(q);
-        setTicketCount(ticketDocs.size);
+        const totalTickets = ticketDocs.docs.reduce((sum, doc) => {
+          const ticketData = doc.data();
+          return sum + (Number(ticketData.quantity) || 1);
+        }, 0);
+        setTicketCount(totalTickets);
       }
     };
 
@@ -270,7 +274,7 @@ const EventDetail = () => {
 
     setIsProcessing(true);
     try {
-      const availableTickets = event.maxTickets - event.ticketsSold;
+      const availableTickets = event.maxTickets - ticketCount;
       if (ticketQuantity > availableTickets) {
         setError('Jumlah tiket yang diminta melebihi ketersediaan');
         return;
@@ -282,9 +286,9 @@ const EventDetail = () => {
         eventId: event.id,
         eventName: event.name,
         userId: user.uid,
-        quantity: ticketQuantity,
-        price: event.price,
-        totalPrice: event.price * ticketQuantity,
+        quantity: Number(ticketQuantity),
+        price: Number(event.price),
+        totalPrice: Number(event.price) * Number(ticketQuantity),
         purchaseDate: new Date(),
         status: 'active',
         buyerName: purchaseForm.name,
@@ -293,10 +297,10 @@ const EventDetail = () => {
 
       await addDoc(collection(db, 'tickets'), ticketData);
       await updateDoc(doc(db, 'events', event.id), {
-        ticketsSold: (event.ticketsSold || 0) + ticketQuantity
+        ticketsSold: (event.ticketsSold || 0) + Number(ticketQuantity)
       });
 
-      setTicketCount(prevCount => prevCount + ticketQuantity);
+      setTicketCount(prevCount => prevCount + Number(ticketQuantity));
 
       const orderData = {
         orderId: orderId,
@@ -305,7 +309,7 @@ const EventDetail = () => {
           {
             id: 'item1',
             price: event.price,
-            quantity: ticketQuantity,
+            quantity: Number(ticketQuantity),
             name: event.name
           }
         ],
@@ -340,8 +344,9 @@ const EventDetail = () => {
                 ticketDetails: {
                   orderId: ticketData.ticketNumber,
                   eventName: event.name,
-                  quantity: ticketCount,
-                  totalPrice: ticketData.totalPrice,
+                  quantity: Number(ticketQuantity),
+                  totalPrice: Number(event.price) * Number(ticketQuantity),
+                  price: Number(event.price),
                   buyerName: ticketData.buyerName,
                   eventDate: event.date,
                   eventTime: event.time,
@@ -400,7 +405,7 @@ const EventDetail = () => {
     );
   }
 
-  const availableTickets = event.maxTickets - event.ticketsSold;
+  const availableTickets = event.maxTickets - ticketCount;
 
   return (
     <div className="min-h-screen bg-[#EBE3D5] pt-20">
