@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import { db } from "../firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import {
   Calendar,
   MapPin,
@@ -19,6 +19,7 @@ import BudayanaLogo from "../assets/Budayana.png";
 
 const TicketPage = () => {
   const [events, setEvents] = useState([]);
+  const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
@@ -31,24 +32,42 @@ const TicketPage = () => {
   const [selectedSort, setSelectedSort] = useState("date");
 
   useEffect(() => {
-    const fetchEvents = async () => {
+    const fetchData = async () => {
       try {
+        // Fetch events
         const eventsRef = collection(db, "events");
         const eventsSnapshot = await getDocs(eventsRef);
         const eventsData = eventsSnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
+
+        // Fetch tickets
+        const ticketsRef = collection(db, "tickets");
+        const ticketsSnapshot = await getDocs(ticketsRef);
+        const ticketsData = ticketsSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+          quantity: Number(doc.data().quantity) || 1,
+        }));
+        setTickets(ticketsData);
         setEvents(eventsData);
       } catch (error) {
-        console.error("Error fetching events:", error);
+        console.error("Error fetching data:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchEvents();
+    fetchData();
   }, []);
+
+  // Calculate tickets sold for an event
+  const getTicketsSold = (eventId) => {
+    return tickets
+      .filter(ticket => ticket.eventId === eventId)
+      .reduce((sum, ticket) => sum + (Number(ticket.quantity) || 1), 0);
+  };
 
   const filteredAndSortedEvents = events
     .filter((event) => {
@@ -73,13 +92,16 @@ const TicketPage = () => {
       return true;
     })
     .sort((a, b) => {
+      const aTicketsSold = getTicketsSold(a.id);
+      const bTicketsSold = getTicketsSold(b.id);
+      
       switch (selectedSort) {
         case "price-asc":
           return a.price - b.price;
         case "price-desc":
           return b.price - a.price;
         case "popularity":
-          return b.maxTickets - b.ticketsSold - (a.maxTickets - a.ticketsSold);
+          return (b.maxTickets - bTicketsSold) - (a.maxTickets - aTicketsSold);
         default:
           return new Date(a.date) - new Date(b.date);
       }
@@ -502,18 +524,18 @@ const TicketPage = () => {
                                 </span>
                                 <span
                                   className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium ${
-                                    event.maxTickets - event.ticketsSold === 0
+                                    event.maxTickets - getTicketsSold(event.id) === 0
                                       ? "bg-red-100 text-red-700"
-                                      : event.maxTickets - event.ticketsSold <
+                                      : event.maxTickets - getTicketsSold(event.id) <
                                         event.maxTickets * 0.2
                                       ? "bg-amber-100 text-amber-700"
                                       : "bg-green-100 text-green-700"
                                   }`}
                                 >
-                                  {event.maxTickets - event.ticketsSold === 0
+                                  {event.maxTickets - getTicketsSold(event.id) === 0
                                     ? "Sold Out"
                                     : `${
-                                        event.maxTickets - event.ticketsSold
+                                        event.maxTickets - getTicketsSold(event.id)
                                       } Tersisa`}
                                 </span>
                               </div>

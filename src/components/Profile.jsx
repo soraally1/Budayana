@@ -464,10 +464,10 @@ const Profile = () => {
                       className="flex-1 py-2.5 sm:py-3 px-4 sm:px-6 bg-[#8B4513] text-white rounded-xl font-fuzzy text-xs sm:text-sm hover:bg-[#5B2600] transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
                     >
                       {updating ? (
-                        <Loader2 className="w-4 h-4 sm:w-5 sm:w-5 animate-spin" />
+                        <Loader2 className="w-4 h-4 sm:w-5 animate-spin" />
                       ) : (
                         <>
-                          <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                          <CheckCircle2 className="w-4 h-4 sm:w-5" />
                           Save Changes
                         </>
                       )}
@@ -561,7 +561,7 @@ const Profile = () => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3, delay: index * 0.1 }}
                       >
-                        <Link to="/tickets" className="block">
+                        <Link to={`/ticket/${ticket.id}`} className="block">
                           <TicketCard ticket={ticket} />
                         </Link>
                       </motion.div>

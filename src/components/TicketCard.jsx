@@ -1,12 +1,13 @@
 import { motion } from "framer-motion";
-import { Ticket, Calendar, Clock, MapPin, QrCode, Users } from "lucide-react";
+import { Ticket, Calendar, Clock, MapPin, Users, QrCode, Copy, CheckCircle2 } from "lucide-react";
 import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import QRCode from 'react-qr-code';
+import { useState } from 'react';
 
 const TicketCard = ({ ticket }) => {
   const navigate = useNavigate();
-  console.log('Rendering ticket:', ticket); // Debug log
+  const [copied, setCopied] = useState(false);
 
   // Validate ticket data
   const validateTicket = () => {
@@ -21,7 +22,26 @@ const TicketCard = ({ ticket }) => {
 
   const getQRData = () => {
     const baseUrl = window.location.origin;
-    return `${baseUrl}/ticket/${ticket.id}`;
+    const ticketUrl = `${baseUrl}/ticket/${ticket.id}`;
+    const qrData = {
+      url: ticketUrl,
+      ticketId: ticket.id,
+      eventName: ticket.eventName,
+      eventDate: ticket.eventDate,
+      eventTime: ticket.eventTime,
+      venue: ticket.venue,
+      buyerName: ticket.userName,
+      quantity: ticket.quantity,
+      totalPrice: ticket.totalPrice,
+      status: ticket.status || 'valid'
+    };
+    return JSON.stringify(qrData);
+  };
+
+  const copyTicketId = () => {
+    navigator.clipboard.writeText(ticket.id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   // Helper function to safely format dates
@@ -125,6 +145,14 @@ const TicketCard = ({ ticket }) => {
               <Users className="w-4 h-4 text-white" />
               <span className="text-white/90">{ticket.quantity || 1} Tiket</span>
             </div>
+
+            {/* Ticket Status */}
+            {ticket.status && (
+              <div className="mt-3 sm:mt-4 flex items-center gap-2 text-xs sm:text-sm bg-white/10 backdrop-blur-sm p-2 sm:p-2.5 rounded-xl">
+                <CheckCircle2 className="w-4 h-4 text-white" />
+                <span className="text-white/90 capitalize">{ticket.status}</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -146,17 +174,32 @@ const TicketCard = ({ ticket }) => {
         <div className="w-full md:w-72 bg-[#FFF8F0] p-4 sm:p-6 flex flex-col sm:flex-row md:flex-col justify-between gap-4 sm:gap-6 md:gap-0">
           {/* QR Code */}
           <div className="flex flex-col items-center">
-            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm">
+            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm relative group">
               <QRCode
                 value={getQRData()}
                 size={100}
                 level="H"
                 fgColor="#8B4513"
               />
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl">
+                <QrCode className="w-8 h-8 text-white" />
+              </div>
             </div>
             <div className="text-center mt-2 sm:mt-3">
               <p className="text-xs sm:text-sm text-[#8B4513]/70 mb-1">Scan to verify ticket</p>
-              <p className="text-xs text-[#8B4513]/50">ID: {ticket.id.slice(0, 8)}</p>
+              <div className="flex items-center justify-center gap-2">
+                <p className="text-xs text-[#8B4513]/50">ID: {ticket.id.slice(0, 8)}</p>
+                <button
+                  onClick={copyTicketId}
+                  className="p-1 hover:bg-[#8B4513]/10 rounded-full transition-colors"
+                >
+                  {copied ? (
+                    <CheckCircle2 className="w-3 h-3 text-green-500" />
+                  ) : (
+                    <Copy className="w-3 h-3 text-[#8B4513]" />
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -214,6 +257,7 @@ TicketCard.propTypes = {
       PropTypes.instanceOf(Date),
       PropTypes.object // For Firestore Timestamp
     ]),
+    eventTime: PropTypes.string,
     purchaseDate: PropTypes.oneOfType([
       PropTypes.string,
       PropTypes.instanceOf(Date),
@@ -223,7 +267,7 @@ TicketCard.propTypes = {
     totalPrice: PropTypes.number,
     venue: PropTypes.string,
     ticketNumber: PropTypes.string,
-    buyerName: PropTypes.string,
+    userName: PropTypes.string,
     status: PropTypes.string,
   }).isRequired,
 };
