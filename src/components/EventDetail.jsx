@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Dialog } from '@headlessui/react';
 
+
 const ticketStyles = `
   .event-ticket {
     position: relative;
@@ -295,50 +296,69 @@ const EventDetail = () => {
         ticketNumber: orderId
       };
 
-      await addDoc(collection(db, 'tickets'), ticketData);
-      await updateDoc(doc(db, 'events', event.id), {
-        ticketsSold: (event.ticketsSold || 0) + Number(ticketQuantity)
-      });
-
-      setTicketCount(prevCount => prevCount + Number(ticketQuantity));
-
-      const orderData = {
-        orderId: orderId,
-        amount: ticketData.totalPrice,
-        items: [
-          {
-            id: 'item1',
-            price: event.price,
-            quantity: Number(ticketQuantity),
-            name: event.name
-          }
-        ],
-        customerDetails: {
-          email: purchaseForm.email,
-          first_name: purchaseForm.name,
-          phone: purchaseForm.phone,
-        }
+      // Prepare data for Midtrans
+      const transactionDetails = {
+        order_id: orderId,
+        gross_amount: ticketData.totalPrice
       };
 
-      const response = await fetch('http://localhost:5000/generate-token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(orderData),
-      });
+      const customerDetails = {
+        first_name: purchaseForm.name,
+        email: purchaseForm.email,
+        phone: purchaseForm.phone,
+      };
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create payment invoice');
-      }
+      const itemDetails = [{
+        id: event.id,
+        price: event.price,
+        quantity: ticketQuantity,
+        name: event.name
+      }];
 
-      const paymentData = await response.json();
+      // Get Snap token from Midtrans
+      try {
+        const response = await fetch('/api/midtrans/snap/v1/transactions', {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Authorization': `Basic ${btoa(import.meta.env.VITE_MIDTRANS_SERVER_KEY + ':')}`
+          },
+          body: JSON.stringify({
+            transaction_details: transactionDetails,
+            customer_details: customerDetails,
+            item_details: itemDetails,
+            credit_card: {
+              secure: true
+            }
+          })
+        });
 
-      if (window.snap) {
-        window.snap.pay(paymentData.token, {
-          onSuccess: function(result) {
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error('Midtrans API Error:', errorData);
+          throw new Error(errorData.error_messages?.[0] || 'Failed to get payment token');
+        }
+
+        const data = await response.json();
+        
+        if (!data.token) {
+          throw new Error('Failed to get payment token');
+        }
+
+        // Initialize Snap for seamless popup
+        window.snap.pay(data.token, {
+          onSuccess: async function(result) {
             console.log('Payment success:', result);
+            // Save ticket data to Firestore
+            await addDoc(collection(db, 'tickets'), ticketData);
+            await updateDoc(doc(db, 'events', event.id), {
+              ticketsSold: (event.ticketsSold || 0) + Number(ticketQuantity)
+            });
+
+            setTicketCount(prevCount => prevCount + Number(ticketQuantity));
+
+            // Navigate to success page
             navigate('/payment-complete', {
               state: {
                 ticketDetails: {
@@ -351,23 +371,27 @@ const EventDetail = () => {
                   eventDate: event.date,
                   eventTime: event.time,
                   venue: event.venue
-                } 
+                }
               }
             });
           },
           onPending: function(result) {
             console.log('Payment pending:', result);
+            setError('Pembayaran dalam proses. Silakan cek email Anda untuk instruksi pembayaran.');
           },
           onError: function(result) {
-            console.log('Payment error:', result);
+            console.error('Payment error:', result);
+            setError('Terjadi kesalahan dalam proses pembayaran. Silakan coba lagi.');
           },
           onClose: function() {
-            console.log('Payment window closed');
+            setIsProcessing(false);
+            setError('Pembayaran dibatalkan. Silakan coba lagi.');
           }
         });
-      } else {
-        console.error('Snap library not loaded');
-        setError('Payment gateway is not available. Please try again later.');
+
+      } catch (error) {
+        console.error('Error getting Snap token:', error);
+        setError('Gagal memulai pembayaran. Silakan coba lagi.');
       }
 
     } catch (error) {

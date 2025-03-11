@@ -9,7 +9,8 @@ import QRCode from 'react-qr-code';
 import BudayanaLogo from '../assets/Budayana.png';
 
 const TicketDetail = () => {
-  const { ticketId } = useParams();
+  const params = useParams();
+  const { id } = params;
   const navigate = useNavigate();
   const [ticket, setTicket] = useState(null);
   const [event, setEvent] = useState(null);
@@ -17,91 +18,138 @@ const TicketDetail = () => {
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
 
-  // Validate ticket data
-  const validateTicket = (ticketData) => {
-    const requiredFields = ['id', 'userId', 'eventName', 'price'];
-    const missingFields = requiredFields.filter(field => !ticketData[field]);
-    
-    if (missingFields.length > 0) {
-      throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
-    }
-    
-    return true;
-  };
-
   useEffect(() => {
     const fetchTicketDetails = async () => {
-      console.log('Fetching ticket details for ID:', ticketId);
-      console.log('Current auth state:', auth.currentUser);
-
-      if (!auth.currentUser) {
-        console.log('No user logged in, redirecting to login');
-        setError('You must be logged in to view ticket details.');
-        navigate('/login');
-        return;
-      }
-
       try {
-        console.log('Fetching ticket document from Firestore');
-        const ticketDoc = await getDoc(doc(db, 'tickets', ticketId));
-        
-        if (ticketDoc.exists()) {
-          const ticketData = { id: ticketDoc.id, ...ticketDoc.data() };
-          console.log('Fetched ticket data:', ticketData);
-          
-          // Validate ticket data
-          try {
-            validateTicket(ticketData);
-          } catch (validationError) {
-            console.error('Ticket validation failed:', validationError);
-            setError('Invalid ticket data. Please contact support.');
-            return;
-          }
-          
-          // Check if the ticket belongs to the current user
-          if (ticketData.userId !== auth.currentUser.uid) {
-            console.log('Ticket does not belong to current user');
-            setError('You do not have permission to view this ticket.');
-            navigate('/tickets');
-            return;
-          }
+        console.log('Starting fetch process...');
+        console.log('Current URL:', window.location.pathname);
+        console.log('Route params:', params);
+        console.log('Ticket ID from params:', id);
 
-          // Fetch event details
-          if (ticketData.eventId) {
-            const eventDoc = await getDoc(doc(db, 'events', ticketData.eventId));
-            if (eventDoc.exists()) {
-              const eventData = eventDoc.data();
-              setEvent({ 
-                id: eventDoc.id, 
-                ...eventData,
-                // Ensure all required event fields have fallback values
-                name: eventData.name || ticketData.eventName || 'Unknown Event',
-                date: eventData.date || ticketData.eventDate,
-                time: eventData.time || ticketData.eventTime,
-                venue: eventData.venue || ticketData.venue || 'Venue TBA',
-                description: eventData.description || 'No description available',
-                category: eventData.category || 'Cultural Event',
-                maxTickets: eventData.maxTickets || 0,
-                ticketsSold: eventData.ticketsSold || 0
-              });
-            }
-          }
-          
-          setTicket(ticketData);
-        } else {
+        // Check if id is valid
+        if (!id || id === 'undefined' || id === 'null') {
+          console.error('No ticket ID provided or invalid ticket ID');
+          console.error('Expected format: /ticket/04z2edwz7mjb07Mtm2PA');
+          setError('Invalid ticket ID. Please check the URL.');
+          setLoading(false);
+          return;
+        }
+
+        // Wait for auth to be initialized and check user
+        console.log('Checking auth state...');
+        const currentUser = auth.currentUser;
+        console.log('Current user:', currentUser?.uid);
+
+        if (!currentUser) {
+          console.log('No user logged in, redirecting to login');
+          setError('You must be logged in to view ticket details.');
+          navigate('/login', { state: { from: `/ticket/${id}` } });
+          setLoading(false);
+          return;
+        }
+
+        // Fetch ticket data
+        console.log('Fetching ticket document from Firestore for ID:', id);
+        const ticketRef = doc(db, 'tickets', id);
+        const ticketDoc = await getDoc(ticketRef);
+        
+        if (!ticketDoc.exists()) {
           console.log('Ticket not found in Firestore');
           setError('Ticket not found');
+          setLoading(false);
+          return;
         }
+
+        // Process ticket data
+        const rawData = ticketDoc.data();
+        console.log('Raw ticket data:', rawData);
+
+        const ticketData = {
+          id: ticketDoc.id,
+          ...rawData,
+          price: Number(rawData.price || 0),
+          totalPrice: Number(rawData.totalPrice || 0),
+          quantity: Number(rawData.quantity || 1)
+        };
+
+        // Verify ticket ownership
+        if (ticketData.userId !== currentUser.uid) {
+          console.log('Ticket belongs to different user');
+          console.log('Ticket userId:', ticketData.userId);
+          console.log('Current userId:', currentUser.uid);
+          setError('You do not have permission to view this ticket.');
+          navigate('/tickets');
+          setLoading(false);
+          return;
+        }
+
+        // Set ticket data first
+        setTicket(ticketData);
+
+        // Then fetch event data if available
+        if (ticketData.eventId) {
+          try {
+            console.log('Fetching event data for eventId:', ticketData.eventId);
+            const eventDoc = await getDoc(doc(db, 'events', ticketData.eventId));
+            
+            if (eventDoc.exists()) {
+              const eventData = eventDoc.data();
+              console.log('Event data:', eventData);
+              
+              setEvent({
+                id: eventDoc.id,
+                ...eventData,
+                name: eventData.name || ticketData.eventName || 'Unknown Event',
+                date: eventData.date || formatDate(ticketData.purchaseDate) || 'TBA',
+                time: eventData.time || formatTime(ticketData.purchaseDate) || 'TBA',
+                venue: eventData.venue || 'Venue TBA',
+                description: eventData.description || 'No description available',
+                category: eventData.category || 'Cultural Event',
+                maxTickets: Number(eventData.maxTickets || 0),
+                ticketsSold: Number(eventData.ticketsSold || 0)
+              });
+            } else {
+              console.log('Event not found, using fallback data');
+              setEvent({
+                id: ticketData.eventId,
+                name: ticketData.eventName || 'Unknown Event',
+                date: formatDate(ticketData.purchaseDate) || 'TBA',
+                time: formatTime(ticketData.purchaseDate) || 'TBA',
+                venue: 'Venue TBA',
+                description: 'Event details not available',
+                category: 'Cultural Event',
+                maxTickets: 0,
+                ticketsSold: 0
+              });
+            }
+          } catch (eventError) {
+            console.error('Error fetching event:', eventError);
+            // Don't fail the whole process if event fetch fails
+            setEvent({
+              id: ticketData.eventId,
+              name: ticketData.eventName || 'Unknown Event',
+              date: formatDate(ticketData.purchaseDate) || 'TBA',
+              time: formatTime(ticketData.purchaseDate) || 'TBA',
+              venue: 'Venue TBA',
+              description: 'Event details not available',
+              category: 'Cultural Event',
+              maxTickets: 0,
+              ticketsSold: 0
+            });
+          }
+        }
+
+        console.log('Fetch process completed successfully');
       } catch (error) {
         console.error('Error fetching ticket details:', error);
-        setError('Failed to load ticket details');
+        setError('Failed to load ticket details: ' + error.message);
       } finally {
         setLoading(false);
       }
     };
 
     fetchTicketDetails();
-  }, [ticketId, navigate]);
+  }, [id, navigate]);
 
   // Helper function to safely format dates
   const formatDate = (dateValue) => {
@@ -432,4 +480,4 @@ const TicketDetail = () => {
   );
 };
 
-export default TicketDetail; 
+export default TicketDetail;

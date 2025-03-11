@@ -12,7 +12,6 @@ import Navbar from './components/Section/Navbar';
 import Profile from './components/Profile';
 import TicketDetail from './components/TicketDetail';
 import AdminPage from './components/AdminPage';
-import AdminRoute from './components/AdminRoute';
 import TicketPage from './components/TicketPage';
 import EventDetail from './components/EventDetail';
 import PaymentComplete from './components/PaymentComplete';
@@ -20,7 +19,7 @@ import AIAssistantPage from './components/AnnaPage';
 import TicketScanner from './components/TicketScanner';
 
 // Protected Route Component
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children, adminRequired = false }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -29,9 +28,14 @@ const ProtectedRoute = ({ children }) => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         const userDoc = await getDoc(doc(db, "users", user.uid));
-        setIsAdmin(userDoc.data()?.role === "admin");
+        const userData = userDoc.data();
+        // Check isAdmin boolean field directly
+        setIsAdmin(userData?.isAdmin === true);
+        setUser(user);
+      } else {
+        setUser(null);
+        setIsAdmin(false);
       }
-      setUser(user);
       setLoading(false);
     });
 
@@ -50,29 +54,16 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/login" />;
   }
 
+  if (adminRequired && !isAdmin) {
+    return <Navigate to="/" />;
+  }
+
   return children;
 };
 
 ProtectedRoute.propTypes = {
-  children: PropTypes.node.isRequired
-};
-
-// 404 Not Found Component
-const NotFound = () => {
-  return (
-    <div className="min-h-screen bg-[#EBE3D5] flex flex-col items-center justify-center p-4">
-      <h1 className="text-4xl font-fuzzy text-[#4A3427] font-bold mb-4">404 - Page Not Found</h1>
-      <p className="text-[#4A3427] mb-6 text-center">
-        The page you&apos;re looking for doesn&apos;t exist or has been moved.
-      </p>
-      <Link 
-        to="/" 
-        className="px-6 py-3 bg-[#8B4513] text-white rounded-xl font-fuzzy hover:bg-[#5B2600] transition-colors"
-      >
-        Back to Home
-      </Link>
-    </div>
-  );
+  children: PropTypes.node.isRequired,
+  adminRequired: PropTypes.bool
 };
 
 // Get base URL from environment or default to '/'
@@ -102,7 +93,7 @@ function App() {
                 <Profile />
               </ProtectedRoute>
             } />
-            <Route path="/ticket/:ticketId" element={
+            <Route path="/ticket/:id" element={
               <ProtectedRoute>
                 <TicketDetail />
               </ProtectedRoute>
@@ -122,13 +113,15 @@ function App() {
                 <PaymentComplete />
               </ProtectedRoute>
             } />
+
+            {/* Admin routes - require admin role */}
             <Route path="/admin" element={
-              <ProtectedRoute>
+              <ProtectedRoute adminRequired={true}>
                 <AdminPage />
               </ProtectedRoute>
             } />
             <Route path="/admin/scan" element={
-              <ProtectedRoute>
+              <ProtectedRoute adminRequired={true}>
                 <TicketScanner />
               </ProtectedRoute>
             } />
@@ -144,5 +137,23 @@ function App() {
     </Router>
   );
 }
+
+// 404 Not Found Component
+const NotFound = () => {
+  return (
+    <div className="min-h-screen bg-[#EBE3D5] flex flex-col items-center justify-center p-4">
+      <h1 className="text-4xl font-fuzzy text-[#4A3427] font-bold mb-4">404 - Page Not Found</h1>
+      <p className="text-[#4A3427] mb-6 text-center">
+        The page you&apos;re looking for doesn&apos;t exist or has been moved.
+      </p>
+      <Link 
+        to="/" 
+        className="px-6 py-3 bg-[#8B4513] text-white rounded-xl font-fuzzy hover:bg-[#5B2600] transition-colors"
+      >
+        Back to Home
+      </Link>
+    </div>
+  );
+};
 
 export default App;
