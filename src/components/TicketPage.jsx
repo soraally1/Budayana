@@ -451,101 +451,123 @@ const TicketPage = () => {
             {/* Event Cards */}
             <div className="grid gap-4 sm:gap-6">
               <AnimatePresence>
-                {filteredAndSortedEvents.map((event, index) => (
-                  <motion.div
-                    key={event.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ delay: index * 0.1 }}
-                  >
-                    <Link to={`/event/${event.id}`} className="block group">
-                      <div className="ticket-shape shadow-lg transition-all hover:shadow-xl">
-                        <div className="ticket-notch ticket-notch-top" />
-                        <div className="ticket-notch ticket-notch-bottom" />
+                {filteredAndSortedEvents.map((event, index) => {
+                  const ticketsSold = getTicketsSold(event.id);
+                  const isSoldOut = ticketsSold >= event.maxTickets;
+                  
+                  return (
+                    <motion.div
+                      key={event.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ delay: index * 0.1 }}
+                    >
+                      <Link 
+                        to={isSoldOut ? '#' : `/event/${event.id}`} 
+                        className={`block group ${isSoldOut ? 'cursor-not-allowed' : ''}`}
+                        onClick={isSoldOut ? (e) => e.preventDefault() : undefined}
+                      >
+                        <div className={`ticket-shape shadow-lg transition-all hover:shadow-xl ${isSoldOut ? 'opacity-75' : ''}`}>
+                          <div className="ticket-notch ticket-notch-top" />
+                          <div className="ticket-notch ticket-notch-bottom" />
 
-                        <div className="flex flex-col sm:flex-row">
-                          {/* Left Section - Image */}
-                          <div className="sm:w-[35%] p-4 sm:p-6 ticket-left-section">
-                            <div className="aspect-[16/9] sm:aspect-[4/3] rounded-xl sm:rounded-2xl overflow-hidden shadow-md">
-                              <img
-                                src={event.imageUrl || "/default-event.jpg"}
-                                alt={event.name}
-                                className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
-                              />
-                            </div>
-                          </div>
-
-                          {/* Right Section - Event Info */}
-                          <div className="flex-1 p-4 sm:p-6 ticket-right-section">
-                            <div className="mb-3 sm:mb-4">
-                              <h3 className="text-base sm:text-lg md:text-xl font-bold text-[#5B2600] mb-2 group-hover:text-[#8B4513] transition-colors line-clamp-2">
-                                {event.name}
-                              </h3>
-                              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs sm:text-sm text-[#8B4513]">
-                                <div className="flex items-center gap-1.5">
-                                  <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                  <span>{event.date}</span>
-                                </div>
-                                <span className="text-[#8B4513]/40">•</span>
-                                <div className="flex items-center gap-1.5">
-                                  <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                  <span>{event.time}</span>
-                                </div>
+                          <div className="flex flex-col sm:flex-row">
+                            {/* Left Section - Image */}
+                            <div className="sm:w-[35%] p-4 sm:p-6 ticket-left-section">
+                              <div className="aspect-[16/9] sm:aspect-[4/3] rounded-xl sm:rounded-2xl overflow-hidden shadow-md relative">
+                                <img
+                                  src={event.imageUrl || "/default-event.jpg"}
+                                  alt={event.name}
+                                  className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
+                                />
+                                {isSoldOut && (
+                                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                    <div className="bg-red-500 text-white px-4 py-2 rounded-lg transform -rotate-12">
+                                      <span className="font-bold">SOLD OUT</span>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2 mb-4">
-                              <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#8B4513]" />
-                              <span className="text-xs sm:text-sm text-[#5B2600] line-clamp-1">
-                                {event.venue}
-                              </span>
-                            </div>
-
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="text-[10px] sm:text-xs text-[#8B4513]">
-                                  Harga Tiket
-                                </p>
-                                <p className="text-base sm:text-lg md:text-2xl font-bold text-[#5B2600]">
-                                  Rp {event.price.toLocaleString()}
-                                </p>
+                            {/* Right Section - Event Info */}
+                            <div className="flex-1 p-4 sm:p-6 ticket-right-section">
+                              <div className="mb-3 sm:mb-4">
+                                <h3 className="text-base sm:text-lg md:text-xl font-bold text-[#5B2600] mb-2 group-hover:text-[#8B4513] transition-colors line-clamp-2">
+                                  {event.name}
+                                </h3>
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs sm:text-sm text-[#8B4513]">
+                                  <div className="flex items-center gap-1.5">
+                                    <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                    <span>{event.date}</span>
+                                  </div>
+                                  <span className="text-[#8B4513]/40">•</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                    <span>{event.time}</span>
+                                  </div>
+                                </div>
                               </div>
-                              <button className="px-3 sm:px-4 py-2 bg-[#5B2600] text-white text-xs sm:text-sm rounded-lg font-medium hover:bg-[#4A3427] transition-colors group-hover:px-4 sm:group-hover:px-5 flex items-center gap-1.5 sm:gap-2">
-                                <span>PILIH</span>
-                                <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
-                              </button>
-                            </div>
 
-                            <div className="mt-3 pt-3 sm:mt-4 sm:pt-4 border-t border-[#E8DED5]">
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="text-[10px] sm:text-xs text-[#8B4513]">
-                                  Tiket Tersedia
+                              <div className="flex items-center gap-2 mb-4">
+                                <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#8B4513]" />
+                                <span className="text-xs sm:text-sm text-[#5B2600] line-clamp-1">
+                                  {event.venue}
                                 </span>
-                                <span
-                                  className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium ${
-                                    event.maxTickets - getTicketsSold(event.id) === 0
-                                      ? "bg-red-100 text-red-700"
-                                      : event.maxTickets - getTicketsSold(event.id) <
-                                        event.maxTickets * 0.2
-                                      ? "bg-amber-100 text-amber-700"
-                                      : "bg-green-100 text-green-700"
+                              </div>
+
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-[10px] sm:text-xs text-[#8B4513]">
+                                    Harga Tiket
+                                  </p>
+                                  <p className="text-base sm:text-lg md:text-2xl font-bold text-[#5B2600]">
+                                    Rp {event.price.toLocaleString()}
+                                  </p>
+                                </div>
+                                <button 
+                                  className={`px-3 sm:px-4 py-2 text-white text-xs sm:text-sm rounded-lg font-medium transition-colors group-hover:px-4 sm:group-hover:px-5 flex items-center gap-1.5 sm:gap-2 ${
+                                    isSoldOut 
+                                      ? 'bg-gray-400 cursor-not-allowed' 
+                                      : 'bg-[#5B2600] hover:bg-[#4A3427]'
                                   }`}
+                                  disabled={isSoldOut}
                                 >
-                                  {event.maxTickets - getTicketsSold(event.id) === 0
-                                    ? "Sold Out"
-                                    : `${
-                                        event.maxTickets - getTicketsSold(event.id)
-                                      } Tersisa`}
-                                </span>
+                                  <span>{isSoldOut ? 'SOLD OUT' : 'PILIH'}</span>
+                                  {!isSoldOut && (
+                                    <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+                                  )}
+                                </button>
+                              </div>
+
+                              <div className="mt-3 pt-3 sm:mt-4 sm:pt-4 border-t border-[#E8DED5]">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-[10px] sm:text-xs text-[#8B4513]">
+                                    Tiket Tersedia
+                                  </span>
+                                  <span
+                                    className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium ${
+                                      isSoldOut
+                                        ? "bg-red-100 text-red-700"
+                                        : event.maxTickets - ticketsSold < event.maxTickets * 0.2
+                                        ? "bg-amber-100 text-amber-700"
+                                        : "bg-green-100 text-green-700"
+                                    }`}
+                                  >
+                                    {isSoldOut
+                                      ? "Sold Out"
+                                      : `${event.maxTickets - ticketsSold} Tersisa`}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    </Link>
-                  </motion.div>
-                ))}
+                      </Link>
+                    </motion.div>
+                  );
+                })}
               </AnimatePresence>
 
               {/* Empty State */}

@@ -3,21 +3,27 @@ import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, '.')
+  // Load env variables even if not used directly here
+  loadEnv(mode, '.')
   
   return {
     plugins: [react()],
     server: {
       proxy: {
-        '/api/midtrans': {
-          target: 'https://app.sandbox.midtrans.com',
+        '/api': {
+          target: 'https://server-two-psi-53.vercel.app',
           changeOrigin: true,
           secure: false,
-          rewrite: (path) => path.replace(/^\/api\/midtrans/, ''),
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'Authorization': `Basic ${btoa(env.VITE_MIDTRANS_SERVER_KEY + ':')}`
+          configure: (proxy) => {
+            proxy.on('error', (err) => {
+              console.log('proxy error', err);
+            });
+            proxy.on('proxyReq', (proxyReq, req) => {
+              console.log('Sending Request to the Target:', req.method, req.url);
+            });
+            proxy.on('proxyRes', (proxyRes, req) => {
+              console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
+            });
           }
         }
       }

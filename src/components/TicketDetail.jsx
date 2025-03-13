@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { Calendar, Clock, MapPin, Loader2, AlertCircle, Users, ArrowLeft, Ticket, Copy, CheckCircle2, XCircle, Download, Share2 } from 'lucide-react';
+import { Calendar, Clock, MapPin, Loader2, AlertCircle, Users, ArrowLeft, Ticket, Copy, CheckCircle2, XCircle, Download, Share2, Printer, AlertTriangle } from 'lucide-react';
 import { auth } from '../firebase';
 import { motion } from 'framer-motion';
 import QRCode from 'react-qr-code';
@@ -17,53 +17,61 @@ const TicketDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [timeUntilEvent, setTimeUntilEvent] = useState(null);
+
+  // Calculate time until event
+  useEffect(() => {
+    if (event?.date && event?.time) {
+      const calculateTimeUntilEvent = () => {
+        const eventDateTime = new Date(`${event.date} ${event.time}`);
+        const now = new Date();
+        const diff = eventDateTime - now;
+
+        if (diff <= 0) {
+          setTimeUntilEvent('Event has passed');
+          return;
+        }
+
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+        setTimeUntilEvent(`${days}d ${hours}h ${minutes}m`);
+      };
+
+      calculateTimeUntilEvent();
+      const interval = setInterval(calculateTimeUntilEvent, 60000); // Update every minute
+      return () => clearInterval(interval);
+    }
+  }, [event?.date, event?.time]);
 
   useEffect(() => {
     const fetchTicketDetails = async () => {
       try {
-        console.log('Starting fetch process...');
-        console.log('Current URL:', window.location.pathname);
-        console.log('Route params:', params);
-        console.log('Ticket ID from params:', id);
-
-        // Check if id is valid
         if (!id || id === 'undefined' || id === 'null') {
-          console.error('No ticket ID provided or invalid ticket ID');
-          console.error('Expected format: /ticket/04z2edwz7mjb07Mtm2PA');
           setError('Invalid ticket ID. Please check the URL.');
           setLoading(false);
           return;
         }
 
-        // Wait for auth to be initialized and check user
-        console.log('Checking auth state...');
         const currentUser = auth.currentUser;
-        console.log('Current user:', currentUser?.uid);
-
         if (!currentUser) {
-          console.log('No user logged in, redirecting to login');
           setError('You must be logged in to view ticket details.');
           navigate('/login', { state: { from: `/ticket/${id}` } });
           setLoading(false);
           return;
         }
 
-        // Fetch ticket data
-        console.log('Fetching ticket document from Firestore for ID:', id);
         const ticketRef = doc(db, 'tickets', id);
         const ticketDoc = await getDoc(ticketRef);
         
         if (!ticketDoc.exists()) {
-          console.log('Ticket not found in Firestore');
           setError('Ticket not found');
           setLoading(false);
           return;
         }
 
-        // Process ticket data
         const rawData = ticketDoc.data();
-        console.log('Raw ticket data:', rawData);
-
         const ticketData = {
           id: ticketDoc.id,
           ...rawData,
@@ -72,30 +80,21 @@ const TicketDetail = () => {
           quantity: Number(rawData.quantity || 1)
         };
 
-        // Verify ticket ownership
         if (ticketData.userId !== currentUser.uid) {
-          console.log('Ticket belongs to different user');
-          console.log('Ticket userId:', ticketData.userId);
-          console.log('Current userId:', currentUser.uid);
           setError('You do not have permission to view this ticket.');
           navigate('/tickets');
           setLoading(false);
           return;
         }
 
-        // Set ticket data first
         setTicket(ticketData);
 
-        // Then fetch event data if available
         if (ticketData.eventId) {
           try {
-            console.log('Fetching event data for eventId:', ticketData.eventId);
             const eventDoc = await getDoc(doc(db, 'events', ticketData.eventId));
             
             if (eventDoc.exists()) {
               const eventData = eventDoc.data();
-              console.log('Event data:', eventData);
-              
               setEvent({
                 id: eventDoc.id,
                 ...eventData,
@@ -109,7 +108,6 @@ const TicketDetail = () => {
                 ticketsSold: Number(eventData.ticketsSold || 0)
               });
             } else {
-              console.log('Event not found, using fallback data');
               setEvent({
                 id: ticketData.eventId,
                 name: ticketData.eventName || 'Unknown Event',
@@ -124,7 +122,6 @@ const TicketDetail = () => {
             }
           } catch (eventError) {
             console.error('Error fetching event:', eventError);
-            // Don't fail the whole process if event fetch fails
             setEvent({
               id: ticketData.eventId,
               name: ticketData.eventName || 'Unknown Event',
@@ -138,8 +135,6 @@ const TicketDetail = () => {
             });
           }
         }
-
-        console.log('Fetch process completed successfully');
       } catch (error) {
         console.error('Error fetching ticket details:', error);
         setError('Failed to load ticket details: ' + error.message);
@@ -151,11 +146,9 @@ const TicketDetail = () => {
     fetchTicketDetails();
   }, [id, navigate]);
 
-  // Helper function to safely format dates
   const formatDate = (dateValue) => {
     if (!dateValue) return 'TBA';
     try {
-      // Handle Firestore Timestamp
       if (dateValue && typeof dateValue.toDate === 'function') {
         dateValue = dateValue.toDate();
       }
@@ -170,16 +163,13 @@ const TicketDetail = () => {
     }
   };
 
-  // Helper function to safely format times
   const formatTime = (timeValue) => {
     if (!timeValue) return 'TBA';
     try {
-      // If it's already a time string (HH:mm format), return it directly
       if (typeof timeValue === 'string' && timeValue.includes(':')) {
         return timeValue;
       }
 
-      // If it's a date object or timestamp, format it
       if (timeValue instanceof Date || (timeValue && typeof timeValue.toDate === 'function')) {
         const date = timeValue instanceof Date ? timeValue : timeValue.toDate();
         return date.toLocaleTimeString('id-ID', {
@@ -188,7 +178,6 @@ const TicketDetail = () => {
         });
       }
 
-      // If it's a string that can be parsed as a date
       const parsedDate = new Date(timeValue);
       if (!isNaN(parsedDate.getTime())) {
         return parsedDate.toLocaleTimeString('id-ID', {
@@ -204,7 +193,6 @@ const TicketDetail = () => {
     }
   };
 
-  // Generate QR code data with validation
   const getQRData = () => {
     if (!ticket) return '';
     
@@ -248,6 +236,10 @@ const TicketDetail = () => {
     document.body.appendChild(downloadLink);
     downloadLink.click();
     document.body.removeChild(downloadLink);
+  };
+
+  const printTicket = () => {
+    window.print();
   };
 
   const shareTicket = async () => {
@@ -348,6 +340,15 @@ const TicketDetail = () => {
                       <p className="font-medium">{formatTime(event?.time || ticket.eventTime)}</p>
                     </div>
                   </div>
+                  {timeUntilEvent && (
+                    <div className="flex items-center gap-3">
+                      <AlertTriangle className="w-5 h-5 text-[#8B4513]" />
+                      <div>
+                        <p className="text-sm text-gray-500">Time Until Event</p>
+                        <p className="font-medium text-[#8B4513]">{timeUntilEvent}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -409,7 +410,7 @@ const TicketDetail = () => {
                     </button>
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 justify-center">
                   <button
                     onClick={downloadQRCode}
                     className="px-4 py-2 bg-[#8B4513] text-white rounded-lg hover:bg-[#5B2600] transition-colors flex items-center gap-2"
@@ -423,6 +424,13 @@ const TicketDetail = () => {
                   >
                     <Share2 className="w-4 h-4" />
                     Share
+                  </button>
+                  <button
+                    onClick={printTicket}
+                    className="px-4 py-2 bg-[#8B4513] text-white rounded-lg hover:bg-[#5B2600] transition-colors flex items-center gap-2"
+                  >
+                    <Printer className="w-4 h-4" />
+                    Print
                   </button>
                 </div>
               </div>
@@ -476,6 +484,26 @@ const TicketDetail = () => {
           </div>
         </motion.div>
       </div>
+
+      {/* Print Styles */}
+      <style>
+        {`
+          @media print {
+            body * {
+              visibility: hidden;
+            }
+            .ticket-print, .ticket-print * {
+              visibility: visible;
+            }
+            .ticket-print {
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 100%;
+            }
+          }
+        `}
+      </style>
     </div>
   );
 };

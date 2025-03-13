@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "proxy": "https://server-two-psi-53.vercel.app",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -12,7 +13,7 @@
   "dependencies": {
     "@google-cloud/firestore": "^7.11.0",
     "@headlessui/react": "^2.2.0",
-    "axios": "^1.8.1",
+    "axios": "^1.8.3",
     "body-parser": "^1.20.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",

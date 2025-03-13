@@ -1,21 +1,73 @@
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Ticket, Calendar, Clock, MapPin, Loader2, Download, AlertTriangle } from 'lucide-react';
 import QRCode from 'react-qr-code';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { db } from '../firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const PaymentComplete = () => {
-    const location = useLocation();
     const navigate = useNavigate();
-    const { ticketDetails } = location.state || {};
     const receiptRef = useRef();
     const qrCodeRef = useRef();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [ticketDetails, setTicketDetails] = useState(null);
+
+    useEffect(() => {
+        const fetchTicketData = async () => {
+            try {
+                // Get ticket number from localStorage
+                const ticketData = JSON.parse(localStorage.getItem('current_ticket_data'));
+                if (!ticketData || !ticketData.ticketNumber) {
+                    setError('Data tiket tidak ditemukan. Silakan coba lagi.');
+                    return;
+                }
+
+                // Fetch ticket from Firestore
+                const ticketsRef = collection(db, 'tickets');
+                const q = query(
+                    ticketsRef,
+                    where('ticketNumber', '==', ticketData.ticketNumber)
+                );
+                const ticketDocs = await getDocs(q);
+
+                if (ticketDocs.empty) {
+                    setError('Tiket tidak ditemukan. Silakan hubungi support.');
+                    return;
+                }
+
+                const ticket = ticketDocs.docs[0].data();
+                setTicketDetails({
+                    ...ticket,
+                    orderId: ticket.ticketNumber,
+                    eventName: ticket.eventName,
+                    quantity: Number(ticket.quantity),
+                    totalPrice: Number(ticket.totalPrice),
+                    price: Number(ticket.price),
+                    buyerName: ticket.buyerName,
+                    eventDate: ticket.eventDate,
+                    eventTime: ticket.eventTime,
+                    venue: ticket.venue
+                });
+
+                // Clear localStorage
+                localStorage.removeItem('current_ticket_data');
+                localStorage.removeItem('midtrans_success');
+
+            } catch (error) {
+                console.error('Error fetching ticket:', error);
+                setError('Terjadi kesalahan saat memuat data tiket. Silakan hubungi support.');
+            }
+        };
+
+        fetchTicketData();
+    }, []);
 
     // Create QR code data with direct URL and ticket details
     const getQRData = () => {
+        if (!ticketDetails) return '';
         const baseUrl = window.location.origin;
         const ticketUrl = `${baseUrl}/ticket/${ticketDetails.orderId}`;
         const qrData = {
@@ -66,7 +118,31 @@ const PaymentComplete = () => {
     };
 
     if (!ticketDetails) {
-        return <div className="text-center text-red-500">No ticket details available.</div>;
+        return (
+            <div className="min-h-screen bg-[#EBE3D5] flex items-center justify-center">
+                <div className="text-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-[#5B2600] mx-auto mb-4" />
+                    <p className="text-[#5B2600]">Memproses pembayaran...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="min-h-screen bg-[#EBE3D5] flex items-center justify-center">
+                <div className="text-center">
+                    <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                    <h2 className="text-xl font-bold text-[#5B2600] mb-2">{error}</h2>
+                    <button
+                        onClick={() => navigate('/tickets')}
+                        className="text-[#5B2600] hover:underline"
+                    >
+                        Kembali ke Daftar Event
+                    </button>
+                </div>
+            </div>
+        );
     }
 
     const downloadReceipt = async () => {

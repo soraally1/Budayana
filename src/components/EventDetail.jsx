@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth } from '../firebase';
-import { doc, getDoc, addDoc, collection, updateDoc, getDocs, query, where } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, query, where, addDoc, updateDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { 
   Calendar,
@@ -16,7 +16,6 @@ import {
   X as XIcon
 } from 'lucide-react';
 import { Dialog } from '@headlessui/react';
-
 
 const ticketStyles = `
   .event-ticket {
@@ -212,6 +211,7 @@ const EventDetail = () => {
   const [loading, setLoading] = useState(true);
   const [ticketQuantity, setTicketQuantity] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [error, setError] = useState('');
   const [showPurchaseForm, setShowPurchaseForm] = useState(false);
@@ -222,6 +222,18 @@ const EventDetail = () => {
     identityNumber: '',
   });
   const [ticketCount, setTicketCount] = useState(0);
+
+  // Add Midtrans client script
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://app.sandbox.midtrans.com/snap/snap.js';
+    script.setAttribute('data-client-key', import.meta.env.VITE_MIDTRANS_CLIENT_KEY);
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -273,7 +285,15 @@ const EventDetail = () => {
       return;
     }
 
+    if (isPopupOpen) {
+      setError('Pembayaran sedang diproses. Silakan tunggu sebentar.');
+      return;
+    }
+
     setIsProcessing(true);
+    setIsPopupOpen(true);
+    setError('');
+
     try {
       const availableTickets = event.maxTickets - ticketCount;
       if (ticketQuantity > availableTickets) {
@@ -282,6 +302,79 @@ const EventDetail = () => {
       }
 
       const orderId = `order_${Date.now()}`;
+      const totalPrice = Number(event.price) * Number(ticketQuantity);
+
+      // Log the request data
+      console.log('Sending payment request:', {
+        orderId,
+        amount: totalPrice,
+        customerName: purchaseForm.name,
+        customerEmail: purchaseForm.email,
+        customerPhone: purchaseForm.phone,
+        itemDetails: [{
+          id: event.id,
+          price: event.price,
+          quantity: ticketQuantity,
+          name: event.name
+        }]
+      });
+
+      // Create payment token through our server
+      const response = await fetch('https://server-two-psi-53.vercel.app/api/create-payment-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        mode: 'cors',
+        credentials: 'omit',
+        body: JSON.stringify({
+          orderId,
+          amount: totalPrice,
+          customerName: purchaseForm.name,
+          customerEmail: purchaseForm.email,
+          customerPhone: purchaseForm.phone,
+          itemDetails: [{
+            id: event.id,
+            price: event.price,
+            quantity: ticketQuantity,
+            name: event.name
+          }]
+        })
+      });
+
+      // Log the full response for debugging
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Server error response:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText,
+          headers: Object.fromEntries(response.headers.entries())
+        });
+        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('Server response:', result);
+
+      if (!result.success) {
+        console.error('Payment creation failed:', result);
+        throw new Error(result.message || 'Failed to create payment token');
+      }
+
+      if (!result.data) {
+        console.error('Invalid server response:', result);
+        throw new Error('Invalid response from payment server: missing data');
+      }
+
+      if (!result.data.token) {
+        console.error('Missing payment token:', result.data);
+        throw new Error('Invalid response from payment server: missing token');
+      }
 
       const ticketData = {
         eventId: event.id,
@@ -289,118 +382,120 @@ const EventDetail = () => {
         userId: user.uid,
         quantity: Number(ticketQuantity),
         price: Number(event.price),
-        totalPrice: Number(event.price) * Number(ticketQuantity),
+        totalPrice: totalPrice,
         purchaseDate: new Date(),
-        status: 'active',
+        status: 'pending',
         buyerName: purchaseForm.name,
-        ticketNumber: orderId
-      };
-
-      // Prepare data for Midtrans
-      const transactionDetails = {
-        order_id: orderId,
-        gross_amount: ticketData.totalPrice
-      };
-
-      const customerDetails = {
-        first_name: purchaseForm.name,
-        email: purchaseForm.email,
-        phone: purchaseForm.phone,
-      };
-
-      const itemDetails = [{
-        id: event.id,
-        price: event.price,
-        quantity: ticketQuantity,
-        name: event.name
-      }];
-
-      // Get Snap token from Midtrans
-      try {
-        const response = await fetch('/api/midtrans/snap/v1/transactions', {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'Authorization': `Basic ${btoa(import.meta.env.VITE_MIDTRANS_SERVER_KEY + ':')}`
-          },
-          body: JSON.stringify({
-            transaction_details: transactionDetails,
-            customer_details: customerDetails,
-            item_details: itemDetails,
-            credit_card: {
-              secure: true
-            }
-          })
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          console.error('Midtrans API Error:', errorData);
-          throw new Error(errorData.error_messages?.[0] || 'Failed to get payment token');
+        buyerEmail: purchaseForm.email,
+        buyerPhone: purchaseForm.phone,
+        ticketNumber: orderId,
+        eventDate: event.date,
+        eventTime: event.time,
+        venue: event.venue,
+        paymentToken: result.data.token,
+        paymentDetails: {
+          orderId,
+          amount: totalPrice,
+          paymentMethod: 'gopay',
+          transactionId: result.data.transaction_id,
+          statusCode: result.data.status_code,
+          statusMessage: result.data.status_message
         }
+      };
 
-        const data = await response.json();
-        
-        if (!data.token) {
-          throw new Error('Failed to get payment token');
-        }
+      console.log('Storing ticket data:', ticketData);
 
-        // Initialize Snap for seamless popup
-        window.snap.pay(data.token, {
-          onSuccess: async function(result) {
-            console.log('Payment success:', result);
+      // Store ticket data in localStorage for access after payment
+      localStorage.setItem('current_ticket_data', JSON.stringify(ticketData));
+
+      // Initialize Snap for seamless popup
+      window.snap.pay(result.data.token, {
+        onSuccess: async function(result) {
+          console.log('Payment success:', result);
+          localStorage.setItem('midtrans_success', JSON.stringify(result));
+          
+          try {
             // Save ticket data to Firestore
-            await addDoc(collection(db, 'tickets'), ticketData);
+            await addDoc(collection(db, 'tickets'), {
+              ...ticketData,
+              paymentStatus: 'success',
+              paymentDetails: result,
+              purchaseDate: new Date()
+            });
+
+            // Update event's ticket count
             await updateDoc(doc(db, 'events', event.id), {
               ticketsSold: (event.ticketsSold || 0) + Number(ticketQuantity)
             });
 
-            setTicketCount(prevCount => prevCount + Number(ticketQuantity));
-
-            // Navigate to success page
-            navigate('/payment-complete', {
-              state: {
-                ticketDetails: {
-                  orderId: ticketData.ticketNumber,
-                  eventName: event.name,
-                  quantity: Number(ticketQuantity),
-                  totalPrice: Number(event.price) * Number(ticketQuantity),
-                  price: Number(event.price),
-                  buyerName: ticketData.buyerName,
-                  eventDate: event.date,
-                  eventTime: event.time,
-                  venue: event.venue
-                }
-              }
-            });
-          },
-          onPending: function(result) {
-            console.log('Payment pending:', result);
-            setError('Pembayaran dalam proses. Silakan cek email Anda untuk instruksi pembayaran.');
-          },
-          onError: function(result) {
-            console.error('Payment error:', result);
-            setError('Terjadi kesalahan dalam proses pembayaran. Silakan coba lagi.');
-          },
-          onClose: function() {
-            setIsProcessing(false);
-            setError('Pembayaran dibatalkan. Silakan coba lagi.');
+            // Update ticket status to success
+            ticketData.status = 'success';
+            localStorage.setItem('current_ticket_data', JSON.stringify(ticketData));
+            window.location.href = '/payment-complete';
+          } catch (error) {
+            console.error('Error saving ticket:', error);
+            setError('Terjadi kesalahan saat menyimpan data tiket. Silakan hubungi support.');
           }
-        });
-
-      } catch (error) {
-        console.error('Error getting Snap token:', error);
-        setError('Gagal memulai pembayaran. Silakan coba lagi.');
-      }
+        },
+        onPending: function(result) {
+          console.log('Payment pending:', result);
+          localStorage.setItem('midtrans_pending', JSON.stringify(result));
+          // Update ticket status to pending
+          ticketData.status = 'pending';
+          localStorage.setItem('current_ticket_data', JSON.stringify(ticketData));
+          window.location.href = '/payment-pending';
+        },
+        onError: function(result) {
+          console.error('Payment error:', result);
+          localStorage.setItem('midtrans_error', JSON.stringify(result));
+          // Update ticket status to failed
+          ticketData.status = 'failed';
+          localStorage.setItem('current_ticket_data', JSON.stringify(ticketData));
+          window.location.href = '/payment-error';
+        },
+        onClose: function() {
+          console.log('Payment closed');
+          // Update ticket status to cancelled
+          ticketData.status = 'cancelled';
+          localStorage.setItem('current_ticket_data', JSON.stringify(ticketData));
+          localStorage.removeItem('midtrans_success');
+          localStorage.removeItem('midtrans_pending');
+          localStorage.removeItem('midtrans_error');
+          setIsPopupOpen(false);
+          setError('Pembayaran dibatalkan. Silakan coba lagi jika Anda ingin melanjutkan pembelian.');
+        }
+      });
 
     } catch (error) {
       console.error('Error processing payment:', error);
-      setError('Terjadi kesalahan saat memproses pembayaran. ' + error.message);
+      setIsPopupOpen(false);
+      
+      // Handle specific error cases
+      if (error.message.includes('401')) {
+        setError('Terjadi kesalahan autentikasi. Silakan hubungi administrator.');
+      } else if (error.message.includes('Missing required fields')) {
+        setError('Data pembelian tidak lengkap. Silakan coba lagi.');
+      } else if (error.message.includes('Invalid GoPay response')) {
+        setError('Terjadi kesalahan saat memproses pembayaran GoPay. Silakan coba lagi.');
+      } else if (error.message.includes('missing token')) {
+        setError('Terjadi kesalahan saat memproses pembayaran. Silakan coba lagi.');
+      } else {
+        setError(`Terjadi kesalahan saat memproses pembayaran: ${error.message}`);
+      }
     } finally {
       setIsProcessing(false);
     }
   };
+
+  // Add cleanup function for payment popup
+  useEffect(() => {
+    return () => {
+      // Cleanup payment data when component unmounts
+      localStorage.removeItem('midtrans_success');
+      localStorage.removeItem('midtrans_pending');
+      localStorage.removeItem('midtrans_error');
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -617,11 +712,19 @@ const EventDetail = () => {
 
                     <button
                       onClick={() => setShowPurchaseForm(true)}
-                      disabled={isProcessing}
-                      className="mt-6 w-full py-4 bg-[#5B2600] text-white rounded-xl font-medium hover:bg-[#4A3427] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                      disabled={isProcessing || availableTickets === 0}
+                      className={`mt-6 w-full py-4 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 ${
+                        availableTickets === 0
+                          ? 'bg-gray-400 cursor-not-allowed'
+                          : 'bg-[#5B2600] hover:bg-[#4A3427]'
+                      } text-white`}
                     >
                       <TicketIcon className="w-5 h-5" />
-                      <span>Beli Tiket Sekarang</span>
+                      <span>
+                        {availableTickets === 0 
+                          ? 'Tiket Habis' 
+                          : 'Beli Tiket Sekarang'}
+                      </span>
                     </button>
                   </>
                 )}

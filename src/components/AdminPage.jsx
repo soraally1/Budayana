@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { auth, db, storage } from '../firebase';
+import { auth, db } from '../firebase';
 import { 
   doc, 
   collection, 
@@ -13,7 +13,6 @@ import {
   onSnapshot,
   getDoc
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { onAuthStateChanged } from 'firebase/auth';
 import { 
   AlertTriangle, 
@@ -120,7 +119,7 @@ const LocationPicker = ({ onLocationSelect, initialLocation }) => {
   const handleSearch = async (e) => {
     e.preventDefault();
     const searchInput = e.target.value;
-    if (!searchInput) return;
+    if (!searchInput || !mapInstanceRef.current) return;
 
     try {
       const response = await fetch(
@@ -635,10 +634,23 @@ const AdminPage = () => {
 
   // Handle image upload
   const handleImageUpload = async (file) => {
-    if (!file) return null;
-    const storageRef = ref(storage, `events/${Date.now()}_${file.name}`);
-    await uploadBytes(storageRef, file);
-    return await getDownloadURL(storageRef);
+    try {
+      // Convert file to base64
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          resolve(reader.result);
+        };
+        reader.onerror = (error) => {
+          reject(error);
+        };
+        reader.readAsDataURL(file);
+      });
+    } catch (error) {
+      console.error('Error processing image:', error);
+      setError('Failed to process image. Please try again.');
+      return null;
+    }
   };
 
   // Handle image change
@@ -663,6 +675,9 @@ const AdminPage = () => {
       let imageUrl = '';
       if (selectedImage) {
         imageUrl = await handleImageUpload(selectedImage);
+        if (!imageUrl) {
+          throw new Error('Failed to process image');
+        }
       }
 
       const eventData = {
@@ -672,7 +687,7 @@ const AdminPage = () => {
         ticketsSold: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
-        imageUrl,
+        imageUrl: imageUrl || null,
         location: newEvent.location || {
           address: newEvent.venue,
           lat: 0,
