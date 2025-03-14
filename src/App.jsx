@@ -17,6 +17,9 @@ import EventDetail from './components/EventDetail';
 import PaymentComplete from './components/PaymentComplete';
 import AIAssistantPage from './components/AnnaPage';
 import TicketScanner from './components/TicketScanner';
+import About from './pages/About';
+import Blog from './pages/Blog';
+import Program from './pages/Program';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, adminRequired = false }) => {
@@ -72,15 +75,18 @@ const baseUrl = import.meta.env.PUBLIC_URL || '/';
 function App() {
   return (
     <Router basename={baseUrl}>
-      <div className="relative min-h-screen bg-[#EBE3D5]">
+      <div className="flex flex-col min-h-screen">
         <Navbar />
-        <main>
+        <main className="flex-grow">
           <Routes>
             {/* Public routes - accessible without authentication */}
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<UserLog />} />
             <Route path="/register" element={<Register />} />
             <Route path="/anna" element={<AIAssistantPage />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/program" element={<Program />} />
             
             {/* Protected routes - require authentication */}
             <Route path="/community" element={
